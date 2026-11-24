@@ -42,6 +42,8 @@ export interface SCurveResult {
 const maxIso = (a: string, b: string) => (a > b ? a : b);
 const minIso = (a: string, b: string) => (a < b ? a : b);
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
+/** Removes floating-point noise (99.9999999 -> 100, -0.0000001 -> 0) so 100% shows as 100.00 and variance as 0.00, never -0.00. */
+const tidy = (x: number) => { const v = Math.round(x * 1e6) / 1e6; return v === 0 ? 0 : v; };
 const dayLabel = (d: string) => `${d.slice(8, 10)}-${d.slice(5, 7)}-${d.slice(2, 4)}`;
 
 /** Cumulative working-day counter over a date range, so each lookup is O(1). */
@@ -180,11 +182,11 @@ export function buildTimePhasedSCurve(acts: Activity[], opt: SCurveOptions): SCu
   let fc = 0;
   let actualToday = 0;
   for (const t of sorted) {
-    const planned = plannedAt(t);
+    const planned = tidy(plannedAt(t));
     let actual: number | null = null;
     let forecast: number | null = null;
     if (t <= today) {
-      act = Math.max(act, rawActualAt(t)); // never dips before today
+      act = Math.max(act, tidy(rawActualAt(t))); // never dips before today
       actual = act;
     }
     if (t === today) {
@@ -193,18 +195,37 @@ export function buildTimePhasedSCurve(acts: Activity[], opt: SCurveOptions): SCu
       forecast = act;
     } else if (t > today) {
       if (!actualToday && today < start) actualToday = 0;
-      fc = t >= forecastDate ? 100 : Math.max(fc, actualToday, rawForecastAt(t));
+      fc = t >= forecastDate ? 100 : Math.max(fc, actualToday, tidy(rawForecastAt(t)));
       forecast = fc;
     }
     points.push({ date: t, label: dayLabel(t), planned, actual, forecast } as SPoint);
   }
 
-  const plannedToday = today < start ? 0 : plannedAt(today);
+  const plannedToday = today < start ? 0 : tidy(plannedAt(today));
   if (today < start) actualToday = 0;
   return {
     points, weights: w, totalPlanDays, activityCount: acts.length, baselineTarget, forecastDate,
-    plannedToday, actualToday, variance: actualToday - plannedToday,
+    plannedToday, actualToday, variance: tidy(actualToday - plannedToday),
     spi: plannedToday > 0 ? actualToday / plannedToday : null,
     anomalies,
   };
+}
+
+/**
+ * Section-wise S-curves for one project: every section gets its own weight pool (its own planned days),
+ * so it runs from 0% to 100% on its own. Sections are discovered from the activities, never hard-coded.
+ */
+export function calculateSectionSCurves(
+  acts: Activity[],
+  opt: SCurveOptions,
+  sectionOf: (a: Activity) => string = (a) => a.section,
+): Map<string, SCurveResult> {
+  const groups = new Map<string, Activity[]>();
+  for (const a of acts) {
+    const k = sectionOf(a);
+    const g = groups.get(k);
+    if (g) g.push(a);
+    else groups.set(k, [a]);
+  }
+  return new Map([...groups].map(([k, g]) => [k, buildTimePhasedSCurve(g, opt)]));
 }

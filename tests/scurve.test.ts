@@ -1,7 +1,7 @@
 // Sanity tests for the time-phased S-curve engine.  Run: npx tsx --test tests/scurve.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildTimePhasedSCurve } from '../src/lib/scurve';
+import { buildTimePhasedSCurve, calculateSectionSCurves } from '../src/lib/scurve';
 import { WorkCalendar, addDays, toDate } from '../src/lib/calendar';
 import type { Activity } from '../src/lib/types';
 
@@ -41,19 +41,20 @@ function makeSchedule(n: number): Activity[] {
   return out;
 }
 
-const close = (a: number, b: number, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} != ${b}`);
+const close = (a: number, b: number, eps = 2e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} != ${b}`);
 
 function checkInvariants(acts: Activity[]) {
   const r = buildTimePhasedSCurve(acts, { cal, today: TODAY });
   assert.equal(r.activityCount, acts.length);
   close(r.weights.reduce((s, x) => s + x, 0), 1);
+  assert.ok(!Object.is(r.variance, -0) && !(r.variance < 0 && r.variance.toFixed(2) === '-0.00'), 'no -0.00 variance');
   assert.equal(r.totalPlanDays, acts.reduce((s, a) => s + Math.max(1, a.plannedDuration), 0));
   assert.equal(r.baselineTarget, acts.map((a) => a.plannedEndDate).sort().at(-1));
 
   let prevP = -1, prevA = -1, prevF = -1;
   for (const p of r.points) {
     // planned matches the reference formula at every checkpoint and never goes down
-    close(p.planned, Math.min(100, p.date >= r.baselineTarget ? 100 : plannedRef(acts, p.date)), 1e-6);
+    close(p.planned, Math.min(100, p.date >= r.baselineTarget ? 100 : plannedRef(acts, p.date)), 2e-6);
     assert.ok(p.planned >= prevP - 1e-9); prevP = p.planned;
     if (p.date > TODAY) assert.equal(p.actual, null, 'no actual after today');
     else { assert.ok(p.actual! >= prevA - 1e-9, 'actual never dips'); prevA = p.actual!; }
@@ -63,7 +64,7 @@ function checkInvariants(acts: Activity[]) {
   }
   const t = r.points.find((p) => p.date === TODAY)!;
   assert.ok(t, 'today is a checkpoint');
-  close(t.actual!, earnedRef(acts), 1e-9); // Verified Actual today = sum(weight x progress)
+  close(t.actual!, earnedRef(acts), 2e-6); // Verified Actual today = sum(weight x progress)
   close(t.forecast!, t.actual!);              // forecast anchored at actual
   close(r.actualToday, t.actual!);
   close(r.plannedToday, t.planned);
@@ -123,7 +124,7 @@ test('in-progress work accrues linearly up to today; completed work over its act
   const mid = r.points.find((p) => p.date === '2026-11-08')!; // Sunday
   const x = 0.5 * 50 * (wdRef('2026-11-02', '2026-11-08') / wdRef('2026-11-02', TODAY));
   const y = 0.5 * 100 * (wdRef('2026-11-02', '2026-11-08') / wdRef('2026-11-02', '2026-11-13'));
-  close(mid.actual!, x + y, 1e-9);
+  close(mid.actual!, x + y, 2e-6);
 });
 
 test('edge cases: inverted dates and completed work dated in the future are flagged, not trusted', () => {
@@ -146,4 +147,48 @@ test('empty project and project not started yet', () => {
   assert.equal(r.plannedToday, 0);
   assert.equal(r.actualToday, 0);
   assert.equal(r.spi, null);
+});
+
+test('section cards: own weight pool, planned at today, forecast starts at actual, edits stay in their section', () => {
+  const acts = makeSchedule(124);
+  const before = calculateSectionSCurves(acts, { cal, today: TODAY });
+  assert.equal(before.size, SECTIONS.length);
+  for (const [name, r] of before) {
+    const sub = acts.filter((a) => a.section === name);
+    assert.equal(r.activityCount, sub.length);
+    close(r.weights.reduce((s, x) => s + x, 0), 1);
+    close(r.plannedToday, Math.min(100, plannedRef(sub, TODAY)), 2e-6);
+    const t = r.points.find((p) => p.date === TODAY)!;
+    assert.equal(t.forecast, t.actual);          // (b) forecast starts at ACTUAL
+    assert.equal(r.actualToday, t.actual);        // ACTUAL card = curve at today
+    let prev = -1;
+    for (const p of r.points) if (p.actual != null) { assert.ok(p.actual >= prev); prev = p.actual; } // (a) no drops
+    if (r.spi != null) close(r.spi, r.actualToday / r.plannedToday);
+  }
+  // (d) edit one Civil activity and add one: only Civil changes
+  const edited = acts.map((a) => (a.activityId === acts.find((x) => x.section === 'Civil')!.activityId ? { ...a, plannedDuration: a.plannedDuration + 5, plannedEndDate: cal.finishFrom(a.plannedStartDate, a.plannedDuration + 5) } : a));
+  edited.push({ activityId: 'NEW-C', section: 'Civil', plannedDuration: 4, plannedStartDate: '2026-12-10', plannedEndDate: cal.finishFrom('2026-12-10', 4), actualStartDate: null, actualEndDate: null, progressPercent: 0 });
+  const after = calculateSectionSCurves(edited, { cal, today: TODAY });
+  for (const name of SECTIONS) {
+    const same = JSON.stringify(before.get(name)) === JSON.stringify(after.get(name));
+    assert.equal(same, name !== 'Civil', name);
+  }
+  // ...and the overall curve picks the change up
+  const o1 = buildTimePhasedSCurve(acts, { cal, today: TODAY });
+  const o2 = buildTimePhasedSCurve(edited, { cal, today: TODAY });
+  assert.equal(o2.activityCount, o1.activityCount + 1);
+  assert.notEqual(o2.totalPlanDays, o1.totalPlanDays);
+});
+
+test('fully complete section shows 100.00 / 100.00 / variance 0.00 (never -0.00)', () => {
+  const acts: Activity[] = [3, 7, 11, 5, 2, 9].map((d, i) => {
+    const s = addDays('2026-09-01', i * 3);
+    const e = cal.finishFrom(s, d);
+    return { activityId: `L-${i}`, section: 'Land', plannedDuration: d, plannedStartDate: s, plannedEndDate: e, actualStartDate: s, actualEndDate: e, progressPercent: 100 };
+  });
+  const r = buildTimePhasedSCurve(acts, { cal, today: TODAY });
+  assert.equal(r.plannedToday, 100);
+  assert.equal(r.actualToday, 100);
+  assert.equal(r.variance.toFixed(2), '0.00');
+  assert.equal(r.spi, 1);
 });
