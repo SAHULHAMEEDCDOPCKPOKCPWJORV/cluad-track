@@ -87,7 +87,7 @@ const NAV: NavItem[] = [
   { view: 'home', label: 'Home', icon: <Home className="h-[18px] w-[18px]" />, group: '' },
   { view: 'projects', label: 'Project Storage', icon: <FolderOpen className="h-[18px] w-[18px]" />, group: 'Projects' },
   { view: 'setup', label: 'Project Setup', icon: <SlidersHorizontal className="h-[18px] w-[18px]" />, group: 'Projects' },
-  { view: 'schedule', label: 'Excel Import', icon: <FileSpreadsheet className="h-[18px] w-[18px]" />, needsProject: true, group: 'Projects' },
+  { view: 'schedule', label: 'Master Schedule', icon: <FileSpreadsheet className="h-[18px] w-[18px]" />, needsProject: true, group: 'Projects' },
   { view: 'gantt', label: 'Gantt Chart', icon: <GanttChartSquare className="h-[18px] w-[18px]" />, needsProject: true, group: 'Projects' },
   { view: 'dashboard', label: 'Project Dashboard', icon: <LayoutGrid className="h-[18px] w-[18px]" />, needsProject: true, group: 'Projects' },
   { view: 'delays', label: 'Delays & Hold Impact', icon: <AlertCircle className="h-[18px] w-[18px]" />, needsProject: true, group: 'Projects' },
@@ -514,7 +514,7 @@ function EmptySchedule({ project, full, hasAny, cal, onDone, toast }: { project:
       <div className="text-lg font-bold text-white">{hasAny ? 'No activities for your department in this project' : 'This project has no activities'}</div>
       <p className="mt-2 text-sm text-slate-400">{hasAny
         ? 'Your login only shows your own department\'s sections, and this project has none yet. Ask Planning (PLAN) to add them.'
-        : 'The schedule is empty. Rebuild the standard 165-activity schedule, or import an Excel file from the Excel Import page.'}</p>
+        : 'The schedule is empty. Rebuild the standard 165-activity schedule, or import an Excel file from the Master Schedule page.'}</p>
       {!hasAny && full && <div className="mt-5"><Button onClick={rebuild} loading={busy}>Rebuild standard schedule</Button></div>}
     </div>
   );

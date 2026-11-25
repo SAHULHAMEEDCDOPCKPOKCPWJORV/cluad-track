@@ -37,8 +37,8 @@ export default function StaffView() {
       <div className="space-y-5">
         <PageHeader title="Activity Incharge Performance" badge={`${activities.length} Activities`} subtitle={project!.name} />
         <Empty icon={<Users className="h-10 w-10" />} title="No activity incharges assigned yet"
-          text="Open Excel Import, click Column Edit, type a staff name in the Activity Incharge column for each activity, and click Save. Performance for each person appears here."
-          action={<Button onClick={() => setView('schedule')}>Go to Excel Import</Button>} />
+          text="Open Master Schedule, click Column Edit, type a staff name in the Activity Incharge column for each activity, and click Save. Performance for each person appears here."
+          action={<Button onClick={() => setView('schedule')}>Go to Master Schedule</Button>} />
       </div>
     );
 

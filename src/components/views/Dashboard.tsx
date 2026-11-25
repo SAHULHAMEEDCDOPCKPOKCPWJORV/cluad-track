@@ -130,7 +130,7 @@ return (
 {fcDelay > 0 && (
 <div className="rounded-xl border border-brand-rose/40 bg-brand-rose/10 px-4 py-3 text-sm text-rose-100">
 <b>Why is the forecast finish {fmt(sc.forecastDate)}?</b> Baseline target is {fmt(sc.baselineTarget)}. The forecast is the latest actual / forecast finish in the schedule; {overdue} activities should already have started but still show 0% progress, so their remaining work is re-planned from today: +{fcDelay} working days.
-{' '}Enter actual start/end dates and progress % in <b>Excel Import</b> and the forecast will update automatically.
+{' '}Enter actual start/end dates and progress % in <b>Master Schedule</b> and the forecast will update automatically.
 </div>
 )}
 <div className="grid gap-4 xl:grid-cols-3">

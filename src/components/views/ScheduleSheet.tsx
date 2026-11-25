@@ -197,7 +197,7 @@ export default function ScheduleSheet() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Excel Import & Master Schedule" badge={`${project!.capacityMw} MW • ${wd} Days (${activities.length} Work Packages)`}
+      <PageHeader title="Master Schedule" badge={`${project!.capacityMw} MW • ${wd} Days (${activities.length} Work Packages)`}
         subtitle={<span className="font-mono uppercase">Project: <b className="text-slate-200">{project!.name}</b> • Timeline: <b className="text-slate-200">{fmt(project!.plannedStartDate)}</b> to <b className="text-slate-200">{fmt(project!.plannedEndDate)}</b> ({wd} days • {activities.length} work packages)</span>} />
 
       <div className="flex flex-wrap items-center gap-2">
