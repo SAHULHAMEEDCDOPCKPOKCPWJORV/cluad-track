@@ -126,7 +126,7 @@ export interface SessionUser {
 export const isAdmin = (u: { role: string } | null | undefined) => u?.role === 'Admin';
 
 /** The owner account: the only account that can sign in, and its email and password are fixed. */
-export const OWNER_EMAILS = ['sahul03111@gmail.com'];
+export const OWNER_EMAILS = ['plan@swelect.com'];
 /** While true, every other account is blocked and only the owner can open the app. */
 export const OWNER_ONLY = true;
 export const CREDIT = 'This website is completely developed by Mr. SAHUL HAMEED M';
