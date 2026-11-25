@@ -11,7 +11,7 @@ export const canSeeActivity = (u: { department: string; role: string }, a: Pick<
 
 // ───────── Access control: which parts of the app each account can use ─────────
 export const MODULES = [
-  { key: 'projects', label: 'Projects', hint: 'Project list, Excel import, Gantt, dashboard, delays, staff, reports, holidays' },
+  { key: 'projects', label: 'Projects', hint: 'Project list, Master Schedule, Gantt, dashboard, delays, staff, reports, holidays' },
   { key: 'news', label: 'Solar News', hint: 'Daily industry news digest' },
   { key: 'reputation', label: 'Reputation', hint: 'Mentions, reviews, reputation report' },
   { key: 'social', label: 'Social Media', hint: 'Own channels and competitor benchmark' },

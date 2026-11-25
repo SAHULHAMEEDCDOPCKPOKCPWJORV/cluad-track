@@ -85,24 +85,29 @@ export const useApp = () => {
 type NavItem = { view: View; label: string; icon: ReactNode; needsProject?: boolean; group: string };
 const NAV: NavItem[] = [
   { view: 'home', label: 'Home', icon: <Home className="h-[18px] w-[18px]" />, group: '' },
-  { view: 'projects', label: 'Project Storage', icon: <FolderOpen className="h-[18px] w-[18px]" />, group: 'Projects' },
-  { view: 'setup', label: 'Create New Project', icon: <SlidersHorizontal className="h-[18px] w-[18px]" />, group: 'Projects' },
-  { view: 'schedule', label: 'Master Schedule', icon: <FileSpreadsheet className="h-[18px] w-[18px]" />, needsProject: true, group: 'Projects' },
-  { view: 'gantt', label: 'Gantt Chart', icon: <GanttChartSquare className="h-[18px] w-[18px]" />, needsProject: true, group: 'Projects' },
-  { view: 'dashboard', label: 'Project Dashboard', icon: <LayoutGrid className="h-[18px] w-[18px]" />, needsProject: true, group: 'Projects' },
-  { view: 'delays', label: 'Delays & Hold Impact', icon: <AlertCircle className="h-[18px] w-[18px]" />, needsProject: true, group: 'Projects' },
-  { view: 'staff', label: 'Staff Performance', icon: <Award className="h-[18px] w-[18px]" />, needsProject: true, group: 'Projects' },
-  { view: 'report', label: 'AI Project Report', icon: <BrainCircuit className="h-[18px] w-[18px]" />, needsProject: true, group: 'Projects' },
-  { view: 'calendar', label: 'Holiday Calendar', icon: <CalendarDays className="h-[18px] w-[18px]" />, group: 'Projects' },
-  { view: 'news', label: 'Solar News', icon: <Newspaper className="h-[18px] w-[18px]" />, group: 'Marketing & Sales' },
-  { view: 'reputation', label: 'Reputation Monitor', icon: <ShieldCheck className="h-[18px] w-[18px]" />, group: 'Marketing & Sales' },
-  { view: 'social', label: 'Social Media', icon: <BarChart3 className="h-[18px] w-[18px]" />, group: 'Marketing & Sales' },
-  { view: 'leads', label: 'Leads & Follow-ups', icon: <Users2 className="h-[18px] w-[18px]" />, group: 'Marketing & Sales' },
+  { view: 'projects', label: 'Project Storage', icon: <FolderOpen className="h-[18px] w-[18px]" />, group: 'Planning & Scheduling' },
+  { view: 'setup', label: 'Create New Project', icon: <SlidersHorizontal className="h-[18px] w-[18px]" />, group: 'Planning & Scheduling' },
+  { view: 'schedule', label: 'Master Schedule', icon: <FileSpreadsheet className="h-[18px] w-[18px]" />, needsProject: true, group: 'Planning & Scheduling' },
+  { view: 'gantt', label: 'Gantt Chart', icon: <GanttChartSquare className="h-[18px] w-[18px]" />, needsProject: true, group: 'Planning & Scheduling' },
+  { view: 'dashboard', label: 'Project Dashboard', icon: <LayoutGrid className="h-[18px] w-[18px]" />, needsProject: true, group: 'Planning & Scheduling' },
+  { view: 'delays', label: 'Delays & Hold Impact', icon: <AlertCircle className="h-[18px] w-[18px]" />, needsProject: true, group: 'Planning & Scheduling' },
+  { view: 'staff', label: 'Staff Performance', icon: <Award className="h-[18px] w-[18px]" />, needsProject: true, group: 'Planning & Scheduling' },
+  { view: 'report', label: 'AI Project Report', icon: <BrainCircuit className="h-[18px] w-[18px]" />, needsProject: true, group: 'Planning & Scheduling' },
+  { view: 'calendar', label: 'Holiday Calendar', icon: <CalendarDays className="h-[18px] w-[18px]" />, group: 'Planning & Scheduling' },
+  { view: 'news', label: 'Solar News', icon: <Newspaper className="h-[18px] w-[18px]" />, group: 'MarCom' },
+  { view: 'reputation', label: 'Reputation Monitor', icon: <ShieldCheck className="h-[18px] w-[18px]" />, group: 'MarCom' },
+  { view: 'social', label: 'Social Media', icon: <BarChart3 className="h-[18px] w-[18px]" />, group: 'MarCom' },
+  { view: 'leads', label: 'Leads & Follow-ups', icon: <Users2 className="h-[18px] w-[18px]" />, group: 'MarCom' },
   { view: 'users', label: 'User Management', icon: <Users className="h-[18px] w-[18px]" />, group: 'Admin' },
   { view: 'audit', label: 'Activity History', icon: <History className="h-[18px] w-[18px]" />, group: 'Admin' },
   { view: 'access', label: 'Access Control', icon: <UserCog className="h-[18px] w-[18px]" />, group: 'Admin' },
   { view: 'settings', label: 'Connections & Settings', icon: <Plug className="h-[18px] w-[18px]" />, group: 'Admin' },
 ];
+/** The two main sections of the menu, each with its own colour so they read as separate areas. */
+const SECTION_STYLE: Record<string, { box: string; dot: string; text: string }> = {
+  'Planning & Scheduling': { box: 'border-emerald-500/30 bg-emerald-500/10', dot: 'bg-emerald-400', text: 'text-emerald-300' },
+  MarCom: { box: 'border-sky-500/30 bg-sky-500/10', dot: 'bg-sky-400', text: 'text-sky-300' },
+};
 const PROJECT_VIEWS: View[] = ['projects', 'setup', 'schedule', 'gantt', 'dashboard', 'delays', 'staff', 'report', 'calendar'];
 /** Which access-control area each page belongs to (null = Home / admin-only pages). */
 const moduleOf = (v: View): ModuleKey | null =>
@@ -369,7 +374,7 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
               <span className="font-mono text-[11px] font-bold tracking-[0.15em] text-solar-gold">SWELECT WORKSPACE</span>
               <span className="h-2 w-2 rounded-full bg-brand-emerald" />
             </div>
-            <div className="font-mono text-[11px] text-slate-400">Projects · Marketing · Sales</div>
+            <div className="font-mono text-[11px] text-slate-400">Planning &amp; Scheduling · MarCom</div>
           </div>
           {project && onProjectPage && (
             <div className="mx-4 mt-4 rounded-xl border border-dark-700 bg-dark-900 p-3">
@@ -385,7 +390,12 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
           <nav className="mt-3 flex-1 space-y-0.5 overflow-y-auto px-4 py-2">
             {navItems.map((n, i) => (
               <div key={n.view}>
-              {n.group && n.group !== navItems[i - 1]?.group && <div className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{n.group}</div>}
+              {n.group && n.group !== navItems[i - 1]?.group && (SECTION_STYLE[n.group]
+                ? <div className={clsx('mb-1.5 flex items-center gap-2 rounded-lg border px-3 py-2', i > 0 && 'mt-5', SECTION_STYLE[n.group].box)}>
+                    <span className={clsx('h-2 w-2 rounded-full', SECTION_STYLE[n.group].dot)} />
+                    <span className={clsx('text-[11px] font-bold uppercase tracking-[0.12em]', SECTION_STYLE[n.group].text)}>{n.group}</span>
+                  </div>
+                : <div className="mt-5 border-t border-dark-700 px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{n.group}</div>)}
               <button onClick={() => setView(n.view)}
                 className={clsx('flex w-full items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-[14px] transition', view === n.view ? 'border-solar-amber bg-gradient-to-r from-solar-amber/20 to-transparent font-semibold text-solar-gold' : 'border-transparent text-slate-200 hover:bg-dark-800')}>
                 {n.icon}
