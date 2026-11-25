@@ -40,7 +40,8 @@ function ruleFor(req: NextRequest): Rule {
   const p = req.nextUrl.pathname;
   if (p === '/api/auth/login' || p === '/api/auth/google' || p === '/api/auth/password') return req.method === 'GET' ? RULES.read : RULES.auth;
   // project passwords: opening or changing one gets the same strict limit as signing in
-  if (/^\/api\/projects\/[^/]+\/(unlock|password)$/.test(p)) return RULES.auth;
+  // changing a project password: strict. Opening a project (asked on every open) is limited globally in rateLimit.ts.
+  if (/^\/api\/projects\/[^/]+\/password$/.test(p)) return RULES.auth;
   if (req.method === 'DELETE' && /^\/api\/projects\/[^/]+$/.test(p)) return RULES.auth; // deleting asks for the project password
   return req.method === 'GET' || req.method === 'HEAD' ? RULES.read : RULES.write;
 }

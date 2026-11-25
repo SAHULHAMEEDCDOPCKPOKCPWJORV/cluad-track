@@ -1,0 +1,18 @@
+# Autoscaling: 3 to 10 copies, adding copies when average CPU passes 65%.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: swelect-app
+  namespace: swelect
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: swelect-app }
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 65 }
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300

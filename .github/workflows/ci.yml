@@ -1,0 +1,50 @@
+# CI: every push and pull request is checked before anyone relies on it.
+# CD: Vercel deploys main to production automatically (Git integration).
+# To stop a failing change from going live, protect `main` on GitHub
+# (Settings -> Branches -> require the "test" and "docker" checks) and merge through pull requests.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Typecheck, build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run test:unit
+      - run: npm run test:e2e
+
+  docker:
+    name: Docker image and Kubernetes manifests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the Docker image
+        run: docker build -t swelect-project-control:ci .
+      - name: Start it and check health
+        run: |
+          docker run -d --name app -p 3000:3000 -e SWELECT_STORE=memory -e SESSION_SECRET=ci-only swelect-project-control:ci
+          for i in $(seq 1 30); do curl -fs http://localhost:3000/api/health && exit 0; sleep 2; done
+          docker logs app; exit 1
+      - name: Validate Kubernetes manifests
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz
+          ./kubeconform -strict -summary -ignore-filename-pattern 'kustomization' deploy/k8s/

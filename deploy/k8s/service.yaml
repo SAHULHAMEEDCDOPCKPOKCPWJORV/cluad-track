@@ -1,0 +1,14 @@
+# Service discovery + load balancing inside the cluster: other parts reach the app at
+# http://swelect-app.swelect.svc.cluster.local (or just "swelect-app" in the same namespace), and Kubernetes
+# spreads the requests over every ready copy. Copies are found by their label, so scaling needs no change here.
+apiVersion: v1
+kind: Service
+metadata:
+  name: swelect-app
+  namespace: swelect
+  labels: { app: swelect-app }
+spec:
+  type: ClusterIP
+  selector: { app: swelect-app }
+  ports:
+    - { name: http, port: 80, targetPort: http }

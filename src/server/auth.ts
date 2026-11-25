@@ -3,12 +3,12 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import type { AuditLog, SessionUser } from '@/lib/types';
-import { getStore, HttpError, isDemoMode, type UserRecord } from './store';
+import { getStore, HttpError, isDemoMode, ownerOnly, type UserRecord } from './store';
 import { announceChange } from './live';
 import { getSetting, setSetting } from './db';
 import { TtlCache } from './resilience';
 import { effectiveAccess, levelOf, MODULES, type Level, type ModuleKey } from '@/lib/access';
-import { isOwner, OWNER_ONLY } from '@/lib/types';
+import { isOwner } from '@/lib/types';
 
 export const COOKIE = 'swelect_session';
 const MAX_AGE = 60 * 60 * 12; // 12 hours
@@ -86,7 +86,7 @@ export async function currentUser(): Promise<SessionUser | null> {
   if (!uid) return null;
   const u = await getStore().getUser(uid);
   if (!u || !u.isActive) return null;
-  if (OWNER_ONLY && !isOwner(u)) return null; // every other account is signed out
+  if (ownerOnly() && !isOwner(u)) return null; // every other account is signed out
   const su = toSessionUser(u);
   su.access = effectiveAccess(su, (await accessOverrides())[u.id]);
   return su;

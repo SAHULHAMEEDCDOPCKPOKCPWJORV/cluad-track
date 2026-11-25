@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { audit, body, handler, requireUser } from '@/server/auth';
 import { savePassword } from '@/server/projectLock';
 import { getStore, HttpError } from '@/server/store';
+import { clientIp, enforce, LIMITS } from '@/server/rateLimit';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -12,6 +13,7 @@ type Ctx = { params: Promise<{ id: string }> };
  */
 export const PUT = handler(async (req: Request, ctx: Ctx) => {
   const u = await requireUser({ edit: true, module: 'projects' });
+  await enforce([LIMITS.passwordIp, clientIp(req)]);
   const { id } = await ctx.params;
   const store = getStore();
   const project = await store.getProject(id);

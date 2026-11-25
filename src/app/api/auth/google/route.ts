@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { audit, body, handler, setSessionCookie, toSessionUser } from '@/server/auth';
-import { getStore, HttpError } from '@/server/store';
-import { CREDIT, isOwner, OWNER_ONLY } from '@/lib/types';
+import { getStore, HttpError, ownerOnly } from '@/server/store';
+import { CREDIT, isOwner } from '@/lib/types';
 import { resilientFetch } from '@/server/resilience';
 
 interface GoogleTokenInfo { aud?: string; iss?: string; email?: string; email_verified?: string | boolean; exp?: string; hd?: string }
@@ -34,7 +34,7 @@ export const POST = handler(async (req: Request) => {
   if (allowed.length && !allowed.includes(email.split('@')[1])) throw new HttpError(403, `Google accounts from ${email.split('@')[1]} are not allowed here.`);
 
   const store = getStore();
-  if (OWNER_ONLY && !isOwner({ email })) throw new HttpError(403, CREDIT);
+  if (ownerOnly() && !isOwner({ email })) throw new HttpError(403, CREDIT);
   const user = await store.getUserByEmail(email);
   if (!user || !user.isActive) throw new HttpError(403, `${email} has no SWELECT Project Control account. Ask the Planning admin to add this email in User Management.`);
   const su = toSessionUser(user);

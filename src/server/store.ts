@@ -2,6 +2,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 import type { Activity, AppUser, AuditLog, Holiday, Project } from '@/lib/types';
+import { OWNER_ONLY } from '@/lib/types';
 import { DEFAULT_HOLIDAYS } from '@/lib/calendar';
 import { resilientFetch, TtlCache } from './resilience';
 
@@ -329,6 +330,15 @@ export function isDemoMode() {
   if (process.env.SWELECT_STORE === 'memory') return true;
   // Local development without keys: fall back to demo data so `npm run dev` always works.
   return process.env.NODE_ENV !== 'production' && !process.env.SUPABASE_SERVICE_ROLE_KEY;
+}
+
+/**
+ * Only the owner account may sign in (OWNER_ONLY). Automated tests run on throwaway demo data and need the
+ * other test accounts, so they can switch this off with SWELECT_TEST_ALL_USERS=1 - in demo mode only,
+ * never against the real database.
+ */
+export function ownerOnly(): boolean {
+  return OWNER_ONLY && !(isDemoMode() && process.env.SWELECT_TEST_ALL_USERS === '1');
 }
 
 export function getStore(): Store {

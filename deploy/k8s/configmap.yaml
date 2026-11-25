@@ -1,0 +1,12 @@
+# Settings that are not secret. Secrets go in the Secret (see secret.example.yaml).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: swelect-config
+  namespace: swelect
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  HOSTNAME: "0.0.0.0"
+  SUPABASE_URL: "https://jdbehquxpudsfbqtlmbq.supabase.co"
+  NEXT_PUBLIC_SUPABASE_URL: "https://jdbehquxpudsfbqtlmbq.supabase.co"

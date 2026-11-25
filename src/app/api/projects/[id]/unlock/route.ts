@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { audit, body, handler, requireUser } from '@/server/auth';
 import { relockProject, unlockProject } from '@/server/projectLock';
 import { getStore, HttpError } from '@/server/store';
+import { clientIp, enforce, LIMITS } from '@/server/rateLimit';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -11,6 +12,7 @@ const wrong = new Map<string, { n: number; until: number }>();
 /** POST { password } -> opens a password-protected project for this account; any other open project is locked again. */
 export const POST = handler(async (req: Request, ctx: Ctx) => {
   const u = await requireUser({ module: 'projects' });
+  await enforce([LIMITS.unlockIp, clientIp(req)]);
   const { id } = await ctx.params;
   const store = getStore();
   const project = await store.getProject(id);

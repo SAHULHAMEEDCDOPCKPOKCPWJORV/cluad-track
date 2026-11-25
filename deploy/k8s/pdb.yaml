@@ -1,0 +1,10 @@
+# Keep at least 2 copies running during cluster maintenance.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: swelect-app
+  namespace: swelect
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels: { app: swelect-app }

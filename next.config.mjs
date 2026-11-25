@@ -8,7 +8,7 @@ const security = [
 ];
 
 // Every deployment gets its own id. Open apps compare theirs with the server's to know a newer version is live.
-const BUILD_ID = process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA || `local-${Date.now()}`;
+const BUILD_ID = process.env.APP_BUILD_ID || process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA || `local-${Date.now()}`;
 
 const nextConfig = {
   env: { NEXT_PUBLIC_BUILD_ID: BUILD_ID },

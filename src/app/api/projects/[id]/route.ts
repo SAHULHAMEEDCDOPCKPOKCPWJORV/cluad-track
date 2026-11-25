@@ -2,6 +2,7 @@ import { audit, body, handler, ok, requireUser } from '@/server/auth';
 import { refitProject, sanitizeProjectInput } from '@/server/projectService';
 import { assertProjectAccess, checkPassword, forgetPassword, lockState } from '@/server/projectLock';
 import { getStore, HttpError } from '@/server/store';
+import { clientIp, enforce, LIMITS } from '@/server/rateLimit';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -42,6 +43,7 @@ export const PATCH = handler(async (req: Request, ctx: Ctx) => {
  */
 export const DELETE = handler(async (req: Request, ctx: Ctx) => {
   const u = await requireUser({ admin: true });
+  await enforce([LIMITS.deleteIp, clientIp(req)]);
   const { id } = await ctx.params;
   const store = getStore();
   const prev = await store.getProject(id);
