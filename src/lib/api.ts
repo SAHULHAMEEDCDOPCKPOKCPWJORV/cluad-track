@@ -71,8 +71,9 @@ export const api = {
   projects: () => req<{ projects: Project[]; summaries: ProjectSummary[] }>('/api/projects'),
   project: (id: string) => req<{ project: Project; activities: Activity[] }>(`/api/projects/${encodeURIComponent(id)}`),
   createProject: (p: Partial<Project> & { projectPassword?: string }) => req<{ project: Project; activities: Activity[] }>('/api/projects', { method: 'POST', json: p }),
-  /** Opens a password-protected project (stays open on this device for 8 hours). */
+  /** Opens a password-protected project; every other project is locked again. */
   unlockProject: (id: string, password: string) => req<{ ok: boolean }>(`/api/projects/${encodeURIComponent(id)}/unlock`, { method: 'POST', json: { password } }),
+  /** Locks a project again ('_all' = every project). */
   lockProject: (id: string) => req<{ ok: boolean }>(`/api/projects/${encodeURIComponent(id)}/unlock`, { method: 'DELETE' }),
   /** Set or change a project password (it cannot be removed). */
   setProjectPassword: (id: string, json: { newPassword?: string; currentPassword?: string }) =>

@@ -8,7 +8,7 @@ type Ctx = { params: Promise<{ id: string }> };
 // After 5 wrong passwords for one project from one account, wait 5 minutes (on top of the per-IP limit in proxy.ts).
 const wrong = new Map<string, { n: number; until: number }>();
 
-/** POST { password } -> opens a password-protected project for this account (8 hours). */
+/** POST { password } -> opens a password-protected project for this account; any other open project is locked again. */
 export const POST = handler(async (req: Request, ctx: Ctx) => {
   const u = await requireUser({ module: 'projects' });
   const { id } = await ctx.params;
@@ -35,7 +35,7 @@ export const POST = handler(async (req: Request, ctx: Ctx) => {
   return res;
 });
 
-/** DELETE -> locks the project again on this device. */
+/** DELETE -> locks the project again on this device ('_all' locks every project). */
 export const DELETE = handler(async (_req: Request, ctx: Ctx) => {
   const u = await requireUser({ module: 'projects' });
   const { id } = await ctx.params;

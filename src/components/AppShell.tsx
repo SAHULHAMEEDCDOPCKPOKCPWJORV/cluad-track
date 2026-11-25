@@ -61,7 +61,7 @@ interface Ctx {
   view: View;
   setView: (v: View) => void;
   selectProject: (id: string) => void;
-  /** Opens a project (from Project Storage only) and goes to its dashboard. */
+  /** Opens a project (from Project Storage only) and goes to its Master Schedule. */
   openProject: (id: string) => void;
   /** Closes the open project and returns to Project Storage. */
   closeProject: () => void;
@@ -221,7 +221,8 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
   }, [projectId, toast]);
 
   useEffect(() => {
-    Promise.all(canProjects ? [reloadProjects(), reloadHolidays()] : [])
+    // Every visit starts with all projects locked: a project's password is asked each time it is opened.
+    Promise.all(canProjects ? [api.lockProject('_all').catch(() => undefined).then(() => reloadProjects()), reloadHolidays()] : [])
       .catch((e) => toast(e.message, 'err'))
       .finally(() => setLoading(false));
   }, [reloadProjects, reloadHolidays, toast, canProjects]);
@@ -288,8 +289,8 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
   const ctx: Ctx = {
     user: viewUser, storeKind, projects, summaries, project, activities: visible, holidays, model, cal, view, setView,
     selectProject: (id) => setProjectId(id),
-    openProject: (id) => { setProjectId(id); setView('dashboard'); },
-    closeProject: () => { setProjectId(null); setView('projects'); },
+    openProject: (id) => { setProjectId(id); setView('schedule'); },
+    closeProject: () => { setProjectId(null); setView('projects'); api.lockProject('_all').then(() => reloadProjects()).catch(() => undefined); },
     reloadProjects, reloadProject, reloadHolidays,
     applyUpdate: (r) => {
       setProject(r.project);
@@ -429,13 +430,13 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
                 <span className="truncate rounded-lg border border-dark-600 bg-dark-900 px-3 py-2 text-sm font-semibold text-white sm:max-w-[300px]">
                   {project ? `${project.locked ? '🔒 ' : ''}${project.name} (${project.capacityMw} MW - ${project.projectType})` : 'No project open'}
                 </span>
-                {view !== 'projects' && <button onClick={() => setView('projects')} className="shrink-0 rounded-lg border border-dark-600 px-2.5 py-2 text-xs font-semibold text-slate-300 hover:border-solar-amber/60 hover:text-white">{project ? 'Change' : 'Open a project'}</button>}
+                {(project || view !== 'projects') && <button onClick={() => (project ? ctx.closeProject() : setView('projects'))} className="shrink-0 rounded-lg border border-dark-600 px-2.5 py-2 text-xs font-semibold text-slate-300 hover:border-solar-amber/60 hover:text-white">{project ? 'Close project' : 'Open a project'}</button>}
               </div>
             )}
             {onProjectPage && project && <span className={clsx('hidden rounded-full border px-3 py-1 text-xs font-semibold sm:inline', statusPill(project.status))}>● {project.status}</span>}
             {onProjectPage && project?.locked && (
               <button title="Lock this project again" aria-label="Lock project"
-                onClick={async () => { try { await api.lockProject(project.id); setProjectId(null); setView('projects'); await reloadProjects(); toast('Project locked'); } catch (e) { toast((e as Error).message, 'err'); } }}
+                onClick={async () => { try { await api.lockProject('_all'); setProjectId(null); setView('projects'); await reloadProjects(); toast('Project locked'); } catch (e) { toast((e as Error).message, 'err'); } }}
                 className="flex items-center gap-1.5 rounded-lg border border-solar-amber/50 bg-solar-amber/10 px-2.5 py-1.5 text-xs font-semibold text-solar-gold hover:bg-solar-amber/20"><Lock className="h-3.5 w-3.5" /><span className="hidden sm:inline">Lock</span></button>
             )}
             {onProjectPage && project && <span className="hidden rounded border border-dark-600 bg-dark-900 px-2.5 py-1 font-mono text-xs text-slate-300 md:inline">{project.state || '—'} • {project.capacityMw} MW</span>}

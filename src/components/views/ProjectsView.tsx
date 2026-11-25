@@ -26,7 +26,8 @@ export default function ProjectsView({ notice }: { notice?: string } = {}) {
   const [busyId, setBusyId] = useState('');
   const [pwFor, setPwFor] = useState<Project | null>(null);
   const [unlockFor, setUnlockFor] = useState<Project | null>(null);
-  const open = (p: Project) => (p.locked && !p.unlocked ? setUnlockFor(p) : openProject(p.id));
+  // The password is asked every time a project is opened (unless it is the one already open right now).
+  const open = (p: Project) => (p.locked && current?.id !== p.id ? setUnlockFor(p) : openProject(p.id));
 
   const shown = projects.filter((p) => (!st || p.status === st) && (!ty || p.projectType === ty) && (!q || `${p.name} ${p.state} ${p.district} ${p.village}`.toLowerCase().includes(q.toLowerCase())));
   const byState = Object.entries(projects.reduce<Record<string, number>>((m, p) => ({ ...m, [p.state || '—']: (m[p.state || '—'] ?? 0) + p.capacityMw }), {})).map(([state, mw]) => ({ state, MW: mw }));
@@ -130,7 +131,7 @@ export default function ProjectsView({ notice }: { notice?: string } = {}) {
                     {user.canEdit && <button title={p.locked ? 'Change project password' : 'Set a project password'} aria-label="Project password" onClick={() => setPwFor(p)} className="rounded p-1.5 text-slate-400 hover:bg-dark-800 hover:text-white"><KeyRound className={clsx('h-4 w-4', p.locked && 'text-solar-gold')} /></button>}
                     {user.canEdit && <button title="Duplicate project" disabled={busyId === p.id} onClick={() => (p.locked && !p.unlocked ? toast('Open this project with its password before copying it', 'err') : setDupFor(p))} className="rounded p-1.5 text-slate-400 hover:bg-dark-800 hover:text-white"><Copy className={clsx('h-4 w-4', busyId === p.id && 'animate-pulse')} /></button>}
                     {user.role === 'Admin' && <button title="Delete project" onClick={() => setDelFor(p)} className="rounded p-1.5 text-slate-400 hover:bg-dark-800 hover:text-brand-rose"><Trash2 className="h-4 w-4" /></button>}
-                    <button onClick={() => open(p)} className="ml-2 flex items-center gap-1.5 rounded-lg border border-solar-amber/60 bg-solar-amber/10 px-3 py-1.5 text-sm font-semibold text-solar-gold hover:bg-solar-amber/20">{p.locked && !p.unlocked ? 'Unlock' : 'Open'}{p.locked && !p.unlocked ? <Lock className="h-3.5 w-3.5" /> : <ExternalLink className="h-3.5 w-3.5" />}</button>
+                    <button onClick={() => open(p)} className="ml-2 flex items-center gap-1.5 rounded-lg border border-solar-amber/60 bg-solar-amber/10 px-3 py-1.5 text-sm font-semibold text-solar-gold hover:bg-solar-amber/20">{p.locked && current?.id !== p.id ? 'Unlock' : 'Open'}{p.locked && current?.id !== p.id ? <Lock className="h-3.5 w-3.5" /> : <ExternalLink className="h-3.5 w-3.5" />}</button>
                   </div>
                 </div>
               );

@@ -22,7 +22,7 @@ export const POST = handler(async (req: Request) => {
   const created = await createProject(u, fields);
   const res = NextResponse.json({ ...created, project: { ...created.project, locked: wantsPassword, unlocked: true } }, { status: 201 });
   if (wantsPassword) {
-    await savePassword(u, created.project.id, { newPassword: projectPassword }, res);
+    await savePassword(u, created.project.id, { newPassword: projectPassword }, res, { fresh: true });
     await getStore().addAudit([audit(u, { action: 'PROJECT_PASSWORD_SET', projectId: created.project.id, projectName: created.project.name, newValue: 'Project password set' })]);
   }
   return res;

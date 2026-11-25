@@ -1,7 +1,7 @@
 'use client';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { Upload, Download, Save, Wand2, Lock, Plus, Search, PauseCircle, Trash2, ChevronDown, ChevronRight, Pencil, Columns3, CheckCircle2, Undo2, FileDown } from 'lucide-react';
+import { Upload, Download, Save, Wand2, Lock, Plus, Search, PauseCircle, Trash2, ChevronDown, ChevronRight, Pencil, Columns3, CheckCircle2, Undo2, FileDown, LayoutGrid } from 'lucide-react';
 import { useApp } from '../AppShell';
 import { Card, Button, C, DEPT_COLORS, SERIES, Select, Input, Modal, Field, StatusBadge } from '../ui';
 import { VBars } from '../charts';
@@ -52,7 +52,7 @@ function derive(cal: WorkCalendar, cur: Activity, k: string, v: unknown): Patch 
 const actualDur = (cal: WorkCalendar, a: Activity) => (a.actualStartDate && a.actualEndDate && a.actualEndDate >= a.actualStartDate ? cal.countWorking(a.actualStartDate, a.actualEndDate) : null);
 
 export default function ScheduleSheet() {
-  const { activities, project, model, user, applyUpdate, toast, cal, registerSave } = useApp();
+  const { activities, project, model, user, applyUpdate, toast, cal, registerSave, setView } = useApp();
   const m = model!;
   const [draft, setDraft] = useState<Record<string, Patch>>({});
   const [q, setQ] = useState('');
@@ -197,7 +197,7 @@ export default function ScheduleSheet() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Master Schedule" badge={`${project!.capacityMw} MW • ${wd} Days (${activities.length} Work Packages)`}
+      <PageHeader title="Master Schedule" right={<Button onClick={() => setView('dashboard')}><LayoutGrid className="h-4 w-4" />Go to Dashboard</Button>} badge={`${project!.capacityMw} MW • ${wd} Days (${activities.length} Work Packages)`}
         subtitle={<span className="font-mono uppercase">Project: <b className="text-slate-200">{project!.name}</b> • Timeline: <b className="text-slate-200">{fmt(project!.plannedStartDate)}</b> to <b className="text-slate-200">{fmt(project!.plannedEndDate)}</b> ({wd} days • {activities.length} work packages)</span>} />
 
       <div className="flex flex-wrap items-center gap-2">

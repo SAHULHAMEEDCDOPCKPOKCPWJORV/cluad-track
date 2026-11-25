@@ -2,7 +2,8 @@
 //  - A project with a password keeps all of its data (schedule, progress, history) behind it: the API refuses
 //    every request for that project until the right password has been entered on this account.
 //  - Only a bcrypt hash is stored (in the existing settings table, key "project.passwords"), never the password.
-//  - Entering the password sets a signed, httpOnly cookie that remembers which projects this account unlocked.
+//  - Entering the password sets a signed, httpOnly session cookie for ONE project: the project being opened.
+//    Opening another project, leaving it, or reloading the app locks it again, so the password is asked on every open.
 //    The cookie records the version of the password it was issued for, so changing or removing the password
 //    locks everyone out again at once.
 import { timingSafeEqual } from 'node:crypto';
@@ -16,7 +17,7 @@ import { HttpError } from './store';
 import { TtlCache } from './resilience';
 
 export const UNLOCK_COOKIE = 'swelect_unlock';
-const UNLOCK_MAX_AGE = 60 * 60 * 8; // an unlocked project stays open for 8 hours
+const UNLOCK_MAX_AGE = 60 * 60 * 12; // upper limit while a project stays open; it is locked again as soon as it is left
 export const MIN_PASSWORD = 6;
 export const MAX_PASSWORD = 100;
 
@@ -71,7 +72,7 @@ function writeUnlocks(res: NextResponse, uid: string, p: Unlocks) {
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
-    maxAge: UNLOCK_MAX_AGE,
+    // no maxAge: a session cookie, gone when the browser or app is closed
   });
 }
 
@@ -117,12 +118,14 @@ export async function unlockProject(u: SessionUser, projectId: string, password:
   if (!l) return { ok: true, protected: false };
   const valid = typeof password === 'string' && password.length > 0 && password.length <= MAX_PASSWORD && (await bcrypt.compare(password, l.hash));
   if (!valid) throw new HttpError(403, 'Incorrect project password');
-  const cur = await currentUnlocks(u.id);
-  writeUnlocks(res, u.id, { ...cur, [projectId]: { exp: Date.now() + UNLOCK_MAX_AGE * 1000, v: l.at } });
+  // Only the project being opened stays unlocked: every other project is locked again.
+  writeUnlocks(res, u.id, { [projectId]: { exp: Date.now() + UNLOCK_MAX_AGE * 1000, v: l.at } });
   return { ok: true, protected: true };
 }
 
+/** Locks one project again, or every project when projectId is '_all' (used on app start and when leaving a project). */
 export async function relockProject(u: SessionUser, projectId: string, res: NextResponse) {
+  if (projectId === '_all') return writeUnlocks(res, u.id, {});
   const cur = await currentUnlocks(u.id);
   delete cur[projectId];
   writeUnlocks(res, u.id, cur);
@@ -137,6 +140,7 @@ export async function savePassword(
   projectId: string,
   input: { newPassword?: unknown; currentPassword?: unknown; remove?: unknown },
   res?: NextResponse,
+  opts: { fresh?: boolean } = {},
 ): Promise<'set' | 'changed'> {
   const locks = { ...(await getLocks()) };
   const existing = locks[projectId];
@@ -150,10 +154,13 @@ export async function savePassword(
   const rec: LockRecord = { hash: await bcrypt.hash(pw, 10), at: new Date().toISOString(), by: u.email };
   locks[projectId] = rec;
   await saveLocks(locks);
-  // The person who just set it does not get locked out of their own project.
   if (res) {
     const cur = await currentUnlocks(u.id);
-    writeUnlocks(res, u.id, { ...cur, [projectId]: { exp: Date.now() + UNLOCK_MAX_AGE * 1000, v: rec.at } });
+    const entry = { exp: Date.now() + UNLOCK_MAX_AGE * 1000, v: rec.at };
+    // A new project opens straight away for its creator (they just typed its password).
+    if (opts.fresh) writeUnlocks(res, u.id, { [projectId]: entry });
+    // Changing the password of the project you have open keeps it open; nothing else gets unlocked.
+    else if (cur[projectId]) writeUnlocks(res, u.id, { ...cur, [projectId]: entry });
   }
   return existing ? 'changed' : 'set';
 }
