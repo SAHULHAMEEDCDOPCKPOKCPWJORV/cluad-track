@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Dark mode (default) and Light mode colours. The Dark / Light button switches the class on <html>. */
+:root { color-scheme: dark; --ac-400: 52 211 153; --ac-500: 16 185 129; --ac-600: 5 150 105; --shadow: 0 0 0; --dk-950: 9 13 22; --dk-900: 14 19 31; --dk-850: 19 26 41; --dk-800: 26 34 52; --dk-750: 33 43 64; --dk-700: 43 55 78; --dk-600: 62 76 102; --dk-500: 92 108 136; --sl-50: 248 250 252; --sl-100: 241 245 249; --sl-200: 226 232 240; --sl-300: 203 213 225; --sl-400: 148 163 184; --sl-500: 112 128 150; --sl-600: 71 85 105; --sl-700: 51 65 85; --sl-800: 30 41 59; --sl-900: 15 23 42; }
+html.light { color-scheme: light; --ac-400: 5 150 105; --ac-500: 4 120 87; --ac-600: 6 95 70; --shadow: 15 23 42; --dk-950: 244 247 251; --dk-900: 255 255 255; --dk-850: 255 255 255; --dk-800: 241 245 249; --dk-750: 232 237 244; --dk-700: 221 228 238; --dk-600: 196 207 222; --dk-500: 148 163 184; --sl-50: 15 23 42; --sl-100: 15 23 42; --sl-200: 30 41 59; --sl-300: 51 65 85; --sl-400: 71 85 105; --sl-500: 100 116 139; --sl-600: 148 163 184; --sl-700: 203 213 225; --sl-800: 226 232 240; --sl-900: 241 245 249; }
+html, body { background: rgb(var(--dk-950)); }
+
+body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-feature-settings: 'cv11', 'ss01'; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: rgb(var(--dk-900)); }
+::-webkit-scrollbar-thumb { background: rgb(var(--dk-600)); border-radius: 6px; border: 2px solid rgb(var(--dk-900)); }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--dk-500)); }
+.recharts-text { fill: #7c8aa5; }
+.recharts-legend-item-text { color: rgb(var(--sl-300)) !important; }
+.recharts-surface:focus, .recharts-wrapper:focus, .recharts-sector:focus { outline: none; }
+input[type='date']::-webkit-calendar-picker-indicator { filter: invert(0.7); }
+.sheet-input { @apply w-full bg-transparent px-1.5 py-1 text-xs text-slate-100 outline-none focus:bg-dark-700 focus:ring-1 focus:ring-solar-amber; }
+@media print { aside, header, footer { display: none !important; } main { padding: 0 !important; } }
+
+/* ---------- Light mode: white background, every colour stays readable ---------- */
+html.light body { background: #f4f7fb; color: #0f172a; }
+html.light input[type='date']::-webkit-calendar-picker-indicator { filter: none; }
+html.light .text-white:not([class*='bg-brand']):not([class*='bg-solar']):not([class*='bg-rose']):not([class*='bg-blue']):not([class*='bg-emerald']):not([class*='bg-gradient']) { color: #0f172a; }
+html.light .hover\:text-white:hover { color: #0f172a; }
+html.light .fill-white { fill: #0f172a; }
+html.light .shadow-black\/20, html.light .shadow-lg { --tw-shadow-color: rgb(15 23 42 / 0.06); }
+html.light .text-solar-gold { color: #047857; }
+html.light .text-solar-amber { color: #047857; }
+html.light .text-brand-cyan { color: #0891b2; }
+html.light .text-brand-emerald { color: #059669; }
+html.light .text-brand-rose { color: #e11d48; }
+html.light .text-rose-50, html.light .text-rose-100, html.light .text-rose-200, html.light .text-rose-300, html.light .text-rose-400 { color: #be123c; }
+html.light .text-cyan-50, html.light .text-cyan-100, html.light .text-cyan-200, html.light .text-cyan-300, html.light .text-cyan-400 { color: #0e7490; }
+html.light .text-emerald-50, html.light .text-emerald-100, html.light .text-emerald-200, html.light .text-emerald-300, html.light .text-emerald-400 { color: #047857; }
+html.light .text-emerald-50, html.light .text-emerald-100, html.light .text-emerald-200, html.light .text-emerald-300, html.light .text-emerald-400 { color: #047857; }
+html.light .text-violet-50, html.light .text-violet-100, html.light .text-violet-200, html.light .text-violet-300, html.light .text-violet-400 { color: #6d28d9; }
+html.light .text-blue-50, html.light .text-blue-100, html.light .text-blue-200, html.light .text-blue-300, html.light .text-blue-400 { color: #1d4ed8; }
+html.light .text-emerald-50, html.light .text-emerald-100, html.light .text-emerald-200, html.light .text-emerald-300, html.light .text-emerald-400 { color: #047857; }
+html.light .text-sky-50, html.light .text-sky-100, html.light .text-sky-200, html.light .text-sky-300, html.light .text-sky-400 { color: #0369a1; }
+html.light .text-emerald-50, html.light .text-emerald-100, html.light .text-emerald-200, html.light .text-emerald-300, html.light .text-emerald-400 { color: #a16207; }
+html.light .text-red-50, html.light .text-red-100, html.light .text-red-200, html.light .text-red-300, html.light .text-red-400 { color: #b91c1c; }
+html.light .text-green-50, html.light .text-green-100, html.light .text-green-200, html.light .text-green-300, html.light .text-green-400 { color: #15803d; }
+html.light .text-teal-50, html.light .text-teal-100, html.light .text-teal-200, html.light .text-teal-300, html.light .text-teal-400 { color: #0f766e; }
+html.light .text-indigo-50, html.light .text-indigo-100, html.light .text-indigo-200, html.light .text-indigo-300, html.light .text-indigo-400 { color: #4338ca; }
+html.light .text-purple-50, html.light .text-purple-100, html.light .text-purple-200, html.light .text-purple-300, html.light .text-purple-400 { color: #7e22ce; }
+html.light .text-pink-50, html.light .text-pink-100, html.light .text-pink-200, html.light .text-pink-300, html.light .text-pink-400 { color: #be185d; }
+html.light .text-lime-50, html.light .text-lime-100, html.light .text-lime-200, html.light .text-lime-300, html.light .text-lime-400 { color: #4d7c0f; }
+html.light .text-fuchsia-50, html.light .text-fuchsia-100, html.light .text-fuchsia-200, html.light .text-fuchsia-300, html.light .text-fuchsia-400 { color: #a21caf; }
+/* charts */
+html.light .recharts-text { fill: #475569; }
+html.light .recharts-cartesian-grid line, html.light .recharts-polar-grid line, html.light .recharts-polar-grid path { stroke: #e2e8f0; }
+html.light .recharts-cartesian-axis-line { stroke: #cbd5e1; }
+html.light .recharts-default-tooltip { background: #ffffff !important; border-color: #e2e8f0 !important; color: #0f172a !important; box-shadow: 0 8px 24px rgb(15 23 42 / 0.12); }
+html.light .recharts-tooltip-cursor { fill: rgb(15 23 42 / 0.04); }
+html.light svg path[stroke='#1e283b'], html.light svg circle[stroke='#1e283b'] { stroke: #e2e8f0; }
+html.light svg text.fill-white { fill: #0f172a; }
+
+/* ================= Design polish layer (look only) ================= */
+:focus-visible { outline: 2px solid rgb(var(--ac-500)); outline-offset: 2px; border-radius: 6px; }
+.sheet-input:focus-visible { outline: none; }
+button, [role='button'], select, summary, label[for] { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+button, a, input, select, textarea { transition-property: color, background-color, border-color, box-shadow, opacity, transform; transition-duration: 160ms; transition-timing-function: ease; }
+button:not(:disabled):active { transform: translateY(0.5px); }
+::selection { background: rgb(var(--ac-500) / 0.28); }
+h1, h2, h3 { letter-spacing: -0.011em; }
+section.rounded-2xl, section.rounded-xl { box-shadow: 0 1px 2px rgb(var(--shadow) / 0.10), 0 6px 20px rgb(var(--shadow) / 0.10); }
+html.light section.rounded-2xl, html.light section.rounded-xl { box-shadow: 0 1px 2px rgb(15 23 42 / 0.05), 0 6px 20px rgb(15 23 42 / 0.06); }
+table thead th { font-weight: 600; letter-spacing: 0.04em; }
+html.light ::-webkit-scrollbar-track { background: #eef2f7; }
+html.light ::-webkit-scrollbar-thumb { background: #c4cfde; border: 2px solid #eef2f7; }
+html.light .bg-solar-amber.text-dark-950, html.light button.bg-solar-amber { color: #ffffff; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
+html.light [style*='rgb(52, 211, 153)'] { color: #047857 !important; }
+/* keep older hard-coded panel colours in step with the theme */
+.bg-\[\#0b111c\] { background-color: rgb(var(--dk-850)); }
+html.light div[style*='solar-farm.svg'] { background-image: linear-gradient(rgb(244 247 251 / 0.86), rgb(244 247 251 / 0.95)), url(/solar-farm.svg) !important; }
+.bg-\[\#0a0e16\] { background-color: rgb(var(--dk-900)); }
+.bg-\[\#0a0e16\]\/95 { background-color: rgb(var(--dk-900) / 0.88); }
+div.fixed.top-0.h-1.bg-gradient-to-r { background-image: linear-gradient(90deg, rgb(var(--ac-600)), rgb(var(--ac-500)), rgb(var(--ac-400))); }
+aside nav button { border-radius: 0.75rem; }
+aside nav button.border-solar-amber { border: 1px solid rgb(var(--ac-500) / 0.3); background-image: none; background-color: rgb(var(--ac-500) / 0.1); }
+aside nav button.border-transparent { border-width: 1px; }
+aside nav button.border-transparent:hover { color: rgb(var(--sl-100)); }
+
+/* Dashboard entrance + hover motion (switched off for visitors who prefer reduced motion) */
+@keyframes sw-rise { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes sw-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.sw-rise { animation: sw-rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 45ms); }
+.sw-grow { transform-origin: left center; animation: sw-grow 1s cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 60ms + 150ms); }
+.sw-lift { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+.sw-lift:hover { transform: translateY(-2px); box-shadow: var(--shadow-pop, 0 8px 24px rgba(0,0,0,0.25)); }
+@media (prefers-reduced-motion: reduce) {
+  .sw-rise, .sw-grow { animation: none !important; }
+  .sw-lift { transition: none; }
+  .sw-lift:hover { transform: none; }
+}
+
+/* Gantt non-working-day hatch (theme aware) */
+:root { --sun-hatch: repeating-linear-gradient(45deg, rgba(196,118,52,0.30) 0 3px, rgba(110,60,22,0.18) 3px 6px); --sun-edge: rgba(196,118,52,0.25); }
+html.light { --sun-hatch: repeating-linear-gradient(45deg, rgba(5,150,105,0.13) 0 3px, rgba(5,150,105,0.04) 3px 6px); --sun-edge: rgba(5,150,105,0.18); }
+
+/* Spreadsheet-style grid lines: Excel Import table and Gantt table */
+.grid-table { border-collapse: separate; border-spacing: 0; }
+.grid-table th, .grid-table td { border-right: 1px solid rgb(var(--dk-700) / 0.85); border-bottom: 1px solid rgb(var(--dk-700) / 0.85) !important; }
+.grid-table th { border-bottom: 2px solid rgb(var(--ac-500) / 0.55) !important; background: rgb(var(--dk-850)); }
+.grid-table th:first-child, .grid-table td:first-child { border-left: 0; }
+.grid-table tbody tr:nth-child(even):not([style]) td { background-color: rgb(var(--dk-800) / 0.35); }
+.grid-table tbody tr:hover:not([style]) td { background-color: rgb(var(--ac-500) / 0.06); }
+.gantt-cells > div { border-right: 1px solid rgb(var(--dk-700) / 0.85); }
+.gantt-cells > div:last-child { border-right: 0; }
+.gantt-head { border-bottom: 2px solid rgb(var(--ac-500) / 0.55); }
+
+/* Soft brand glow behind every page (both modes) */
+body { background-image: radial-gradient(1100px 520px at 88% -8%, rgb(var(--ac-500) / 0.08), transparent 60%), radial-gradient(900px 480px at 10% -10%, rgb(37 99 235 / 0.07), transparent 60%); background-attachment: fixed; }
+html.light body { background-image: radial-gradient(1100px 520px at 88% -8%, rgb(5 150 105 / 0.07), transparent 60%), radial-gradient(900px 480px at 10% -10%, rgb(37 99 235 / 0.06), transparent 60%); }
+section.rounded-2xl { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+section.rounded-2xl:hover { border-color: rgb(var(--dk-600)); }
+.login-hero img { animation: sw-zoom 24s ease-in-out infinite alternate; }
+@keyframes sw-zoom { from { transform: scale(1.05); } to { transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .login-hero img { animation: none; } }
+.gantt-delay { background: rgba(76, 5, 25, 0.7); color: #fb7185; }
+html.light .gantt-delay { background: #fff1f2; color: #e11d48; }
+:root { --act-track: #6b3a14; }
+html.light { --act-track: #a7f3d0; }
