@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { audit, body, handler, ok, requireUser } from '@/server/auth';
 import { createProject } from '@/server/projectService';
 import { checkNew, lockState, savePassword } from '@/server/projectLock';
-import { getStore } from '@/server/store';
+import { getStore, HttpError } from '@/server/store';
 
 export const GET = handler(async () => {
   const u = await requireUser({ module: 'projects' });
@@ -15,8 +15,10 @@ export const GET = handler(async () => {
 export const POST = handler(async (req: Request) => {
   const u = await requireUser({ edit: true, module: 'projects' });
   const { projectPassword, ...fields } = await body<Record<string, unknown>>(req);
-  const wantsPassword = typeof projectPassword === 'string' && projectPassword !== '';
-  if (wantsPassword) checkNew(projectPassword); // reject a bad password before anything is created
+  // Every new project must have a password; check it before anything is created.
+  if (typeof projectPassword !== 'string' || !projectPassword) throw new HttpError(400, 'Project password is required');
+  checkNew(projectPassword);
+  const wantsPassword = true;
   const created = await createProject(u, fields);
   const res = NextResponse.json({ ...created, project: { ...created.project, locked: wantsPassword, unlocked: true } }, { status: 201 });
   if (wantsPassword) {

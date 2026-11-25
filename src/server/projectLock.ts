@@ -137,19 +137,15 @@ export async function savePassword(
   projectId: string,
   input: { newPassword?: unknown; currentPassword?: unknown; remove?: unknown },
   res?: NextResponse,
-): Promise<'set' | 'changed' | 'removed'> {
+): Promise<'set' | 'changed'> {
   const locks = { ...(await getLocks()) };
   const existing = locks[projectId];
   if (existing && u.role !== 'Admin') {
     const cur = typeof input.currentPassword === 'string' ? input.currentPassword : '';
     if (!cur || !(await bcrypt.compare(cur, existing.hash))) throw new HttpError(403, 'Enter the current project password to change or remove it');
   }
-  if (input.remove) {
-    if (!existing) return 'removed';
-    delete locks[projectId];
-    await saveLocks(locks);
-    return 'removed';
-  }
+  // Every project must have a password: it can be changed, never removed.
+  if (input.remove) throw new HttpError(400, 'Every project must have a password. Set a new one instead of removing it.');
   const pw = checkNew(input.newPassword);
   const rec: LockRecord = { hash: await bcrypt.hash(pw, 10), at: new Date().toISOString(), by: u.email };
   locks[projectId] = rec;
@@ -160,6 +156,13 @@ export async function savePassword(
     writeUnlocks(res, u.id, { ...cur, [projectId]: { exp: Date.now() + UNLOCK_MAX_AGE * 1000, v: rec.at } });
   }
   return existing ? 'changed' : 'set';
+}
+
+/** True when `password` is this project's password (a project without one has nothing to check). */
+export async function checkPassword(projectId: string, password: unknown): Promise<boolean> {
+  const l = (await getLocks())[projectId];
+  if (!l) return true;
+  return typeof password === 'string' && password.length > 0 && password.length <= MAX_PASSWORD && bcrypt.compare(password, l.hash);
 }
 
 /** Used when a project is deleted: drop its password record. */

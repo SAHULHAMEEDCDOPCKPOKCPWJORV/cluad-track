@@ -74,11 +74,12 @@ export const api = {
   /** Opens a password-protected project (stays open on this device for 8 hours). */
   unlockProject: (id: string, password: string) => req<{ ok: boolean }>(`/api/projects/${encodeURIComponent(id)}/unlock`, { method: 'POST', json: { password } }),
   lockProject: (id: string) => req<{ ok: boolean }>(`/api/projects/${encodeURIComponent(id)}/unlock`, { method: 'DELETE' }),
-  /** Set, change or remove a project password. */
-  setProjectPassword: (id: string, json: { newPassword?: string; currentPassword?: string; remove?: boolean }) =>
+  /** Set or change a project password (it cannot be removed). */
+  setProjectPassword: (id: string, json: { newPassword?: string; currentPassword?: string }) =>
     req<{ ok: boolean; locked: boolean }>(`/api/projects/${encodeURIComponent(id)}/password`, { method: 'PUT', json }),
   updateProject: (id: string, p: Partial<Project>) => req<{ project: Project }>(`/api/projects/${encodeURIComponent(id)}`, { method: 'PATCH', json: p }),
-  deleteProject: (id: string) => req(`/api/projects/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  /** Needs the project's password and the signed declaration. */
+  deleteProject: (id: string, password: string, declaration: boolean) => req(`/api/projects/${encodeURIComponent(id)}`, { method: 'DELETE', json: { password, declaration } }),
   updateActivities: (id: string, json: { activities?: Partial<Activity>[]; action?: string; deleteIds?: string[] }) =>
     req<{ project: Project; activities: Activity[]; changed: number }>(`/api/projects/${encodeURIComponent(id)}/activities`, { method: 'PUT', json }),
   holidays: () => req<{ holidays: Holiday[] }>('/api/holidays'),

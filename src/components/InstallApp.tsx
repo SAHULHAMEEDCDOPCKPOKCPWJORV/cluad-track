@@ -21,7 +21,7 @@ export default function InstallApp() {
 
   useEffect(() => {
     if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
-      navigator.serviceWorker.register('/sw.js').catch(() => undefined);
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => undefined); // always check for a newer app helper
     }
     const standalone =
       window.matchMedia('(display-mode: standalone)').matches ||

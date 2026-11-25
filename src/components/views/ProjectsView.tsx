@@ -35,23 +35,15 @@ export default function ProjectsView({ notice }: { notice?: string } = {}) {
   const tlMax = projects.length ? projects.map((p) => p.plannedEndDate).reduce((a, b) => (a > b ? a : b)) : todayIso();
   const span = Math.max(1, diffDays(tlMin, tlMax));
 
-  const remove = async (p: Project) => {
-    if (!confirm(`Delete project "${p.name}" and all ${summaries[p.id]?.activities ?? ''} activities? This cannot be undone.`)) return;
-    try {
-      await api.deleteProject(p.id);
-      toast('Project deleted');
-      await reloadProjects();
-    } catch (e) {
-      toast((e as Error).message, 'err');
-    }
-  };
-  const duplicate = async (p: Project) => {
+  const [delFor, setDelFor] = useState<Project | null>(null);
+  const [dupFor, setDupFor] = useState<Project | null>(null);
+  const duplicate = async (p: Project, projectPassword: string) => {
     setBusyId(p.id);
     try {
       const src = await api.project(p.id);
       const { id: _id, createdAt: _c, updatedAt: _u, ...fields } = p;
       void _id; void _c; void _u;
-      const r = await api.createProject({ ...fields, name: `${p.name} (Copy)` });
+      const r = await api.createProject({ ...fields, name: `${p.name} (Copy)`, projectPassword });
       await api.updateActivities(r.project.id, {
         action: 'import',
         activities: src.activities.map((a) => ({
@@ -135,9 +127,9 @@ export default function ProjectsView({ notice }: { notice?: string } = {}) {
                   <div className="mt-4 flex items-center gap-1 border-t border-dark-700 pt-4">
                     <span className="flex-1 font-mono text-[11px] text-slate-500">Modified: {fmt((p.updatedAt ?? p.createdAt ?? todayIso()).slice(0, 10))}</span>
                     {user.canEdit && <button title="Edit project setup" onClick={() => setEditing(p)} className="rounded p-1.5 text-slate-400 hover:bg-dark-800 hover:text-white"><Pencil className="h-4 w-4" /></button>}
-                    {user.canEdit && <button title={p.locked ? 'Change or remove project password' : 'Set a project password'} aria-label="Project password" onClick={() => setPwFor(p)} className="rounded p-1.5 text-slate-400 hover:bg-dark-800 hover:text-white"><KeyRound className={clsx('h-4 w-4', p.locked && 'text-solar-gold')} /></button>}
-                    {user.canEdit && <button title="Duplicate project" disabled={busyId === p.id} onClick={() => duplicate(p)} className="rounded p-1.5 text-slate-400 hover:bg-dark-800 hover:text-white"><Copy className={clsx('h-4 w-4', busyId === p.id && 'animate-pulse')} /></button>}
-                    {user.role === 'Admin' && <button title="Delete project" onClick={() => remove(p)} className="rounded p-1.5 text-slate-400 hover:bg-dark-800 hover:text-brand-rose"><Trash2 className="h-4 w-4" /></button>}
+                    {user.canEdit && <button title={p.locked ? 'Change project password' : 'Set a project password'} aria-label="Project password" onClick={() => setPwFor(p)} className="rounded p-1.5 text-slate-400 hover:bg-dark-800 hover:text-white"><KeyRound className={clsx('h-4 w-4', p.locked && 'text-solar-gold')} /></button>}
+                    {user.canEdit && <button title="Duplicate project" disabled={busyId === p.id} onClick={() => (p.locked && !p.unlocked ? toast('Open this project with its password before copying it', 'err') : setDupFor(p))} className="rounded p-1.5 text-slate-400 hover:bg-dark-800 hover:text-white"><Copy className={clsx('h-4 w-4', busyId === p.id && 'animate-pulse')} /></button>}
+                    {user.role === 'Admin' && <button title="Delete project" onClick={() => setDelFor(p)} className="rounded p-1.5 text-slate-400 hover:bg-dark-800 hover:text-brand-rose"><Trash2 className="h-4 w-4" /></button>}
                     <button onClick={() => open(p)} className="ml-2 flex items-center gap-1.5 rounded-lg border border-solar-amber/60 bg-solar-amber/10 px-3 py-1.5 text-sm font-semibold text-solar-gold hover:bg-solar-amber/20">{p.locked && !p.unlocked ? 'Unlock' : 'Open'}{p.locked && !p.unlocked ? <Lock className="h-3.5 w-3.5" /> : <ExternalLink className="h-3.5 w-3.5" />}</button>
                   </div>
                 </div>
@@ -175,9 +167,79 @@ export default function ProjectsView({ notice }: { notice?: string } = {}) {
           <SetupForm project={editing === 'new' ? null : editing} onDone={() => setEditing(null)} />
         </Modal>
       )}
+      {delFor && <DeleteProjectModal project={delFor} activities={summaries[delFor.id]?.activities} onClose={() => setDelFor(null)} />}
+      {dupFor && <NewPasswordModal title={`Copy ${dupFor.name}`} text="The copy is a new project and needs its own password." onClose={() => setDupFor(null)} onSubmit={async (pw) => { const p = dupFor; setDupFor(null); await duplicate(p, pw); }} />}
       {pwFor && <ProjectPasswordModal project={pwFor} onClose={() => setPwFor(null)} />}
       {unlockFor && <UnlockModal project={unlockFor} onClose={() => setUnlockFor(null)} onOpened={() => { setUnlockFor(null); openProject(unlockFor.id); }} />}
     </div>
+  );
+}
+
+/** Deleting a project needs its password and a signed declaration. */
+function DeleteProjectModal({ project, activities, onClose }: { project: Project; activities?: number; onClose: () => void }) {
+  const { user, toast, reloadProjects, project: current, closeProject } = useApp();
+  const [pw, setPw] = useState('');
+  const [agreed, setAgreed] = useState(false);
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (!pw) return setErr('Enter the project password');
+    if (!agreed) return setErr('Tick the declaration to confirm');
+    setErr('');
+    setBusy(true);
+    try {
+      await api.deleteProject(project.id, pw, true);
+      if (current?.id === project.id) closeProject();
+      toast(`Project "${project.name}" deleted`);
+      await reloadProjects();
+      onClose();
+    } catch (e) {
+      setErr((e as Error).message);
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal open onClose={onClose} title={<span className="flex items-center gap-2 text-brand-rose"><Trash2 className="h-4 w-4" />Delete {project.name}</span>}>
+      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+        <p className="rounded-lg border border-brand-rose/40 bg-brand-rose/10 p-3 text-sm text-rose-200">This permanently deletes the project{activities ? ` and its ${activities} activities` : ''}, including all progress. It cannot be undone.</p>
+        <Field label="Project password *"><Input type="password" autoFocus value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="off" placeholder="Enter this project's password" /></Field>
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-dark-600 bg-dark-900 p-3 text-sm text-slate-200">
+          <input type="checkbox" className="mt-0.5 h-4 w-4 accent-rose-500" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+          <span><b>Declaration:</b> I, {user.name || user.email}, confirm that I am authorised to delete the project &quot;{project.name}&quot; and understand that its schedule, progress and data will be permanently deleted and cannot be recovered.</span>
+        </label>
+        {err && <p className="text-sm text-brand-rose">{err}</p>}
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="danger" loading={busy} disabled={!agreed || !pw}>Delete project permanently</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/** Asks for a new project password (used when copying a project). */
+function NewPasswordModal({ title, text, onClose, onSubmit }: { title: string; text: string; onClose: () => void; onSubmit: (pw: string) => Promise<void> }) {
+  const [np, setNp] = useState('');
+  const [np2, setNp2] = useState('');
+  const [err, setErr] = useState('');
+  const go = () => {
+    if (np.length < 6) return setErr('Project password must be at least 6 characters');
+    if (np !== np2) return setErr('The two passwords do not match');
+    void onSubmit(np);
+  };
+  return (
+    <Modal open onClose={onClose} title={title}>
+      <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); go(); }}>
+        <p className="text-sm text-slate-400">{text}</p>
+        <Field label="Project password *" hint="At least 6 characters"><Input type="password" autoFocus value={np} onChange={(e) => setNp(e.target.value)} autoComplete="new-password" /></Field>
+        <Field label="Confirm project password *"><Input type="password" value={np2} onChange={(e) => setNp2(e.target.value)} autoComplete="new-password" /></Field>
+        {err && <p className="text-sm text-brand-rose">{err}</p>}
+        <div className="flex justify-end gap-2 pt-1">
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit">Create copy</Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -222,7 +284,7 @@ export function ProjectPasswordModal({ project, onClose }: { project: Project; o
   const [np, setNp] = useState('');
   const [np2, setNp2] = useState('');
   const [err, setErr] = useState('');
-  const [busy, setBusy] = useState<'' | 'save' | 'remove'>('');
+  const [busy, setBusy] = useState<'' | 'save'>('');
   const has = !!project.locked;
   const needCurrent = has && user.role !== 'Admin'; // an Admin account can reset a forgotten password
   const refresh = async () => { await Promise.all([reloadProjects(), current?.id === project.id ? reloadProject() : Promise.resolve()]); };
@@ -242,33 +304,17 @@ export function ProjectPasswordModal({ project, onClose }: { project: Project; o
       setBusy('');
     }
   };
-  const remove = async () => {
-    setErr('');
-    if (!confirm(`Remove the password from "${project.name}"? Anyone who can use the app will be able to open it.`)) return;
-    setBusy('remove');
-    try {
-      await api.setProjectPassword(project.id, { remove: true, currentPassword: needCurrent ? cur : undefined });
-      toast('Project password removed');
-      await refresh();
-      onClose();
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setBusy('');
-    }
-  };
   return (
     <Modal open onClose={onClose} title={has ? `Project password · ${project.name}` : `Set a project password · ${project.name}`}>
       <div className="space-y-3">
         <p className="rounded-lg bg-solar-amber/10 p-3 text-sm text-solar-gold">{has
-          ? 'This project is password protected. Anyone opening it is asked for the password.'
+          ? 'Every project must have a password. Enter a new one to change it.'
           : 'Once a password is set, anyone opening this project is asked for it first. Its schedule, progress and history stay hidden until it is entered.'}</p>
         {needCurrent && <Field label="Current project password"><Input type="password" value={cur} onChange={(e) => setCur(e.target.value)} autoComplete="off" /></Field>}
         <Field label={has ? 'New project password' : 'Project password'} hint="At least 6 characters"><Input type="password" value={np} onChange={(e) => setNp(e.target.value)} autoComplete="new-password" /></Field>
         <Field label="Confirm project password"><Input type="password" value={np2} onChange={(e) => setNp2(e.target.value)} autoComplete="new-password" /></Field>
         {err && <p className="text-sm text-brand-rose">{err}</p>}
         <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
-          {has && <Button variant="danger" size="sm" onClick={remove} loading={busy === 'remove'} className="mr-auto">Remove password</Button>}
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button onClick={save} loading={busy === 'save'}>{has ? 'Change password' : 'Set password'}</Button>
         </div>
@@ -289,15 +335,15 @@ function SetupTitle({ edit }: { edit: boolean }) {
 /** Project Setup page (sidebar). Edits the active project, or creates a new one. */
 export function ProjectSetupPage() {
   const { project, user } = useApp();
-  const [mode, setMode] = useState<'edit' | 'new'>(project ? 'edit' : 'new');
+  const [mode, setMode] = useState<'edit' | 'new'>('new');
   const target = mode === 'edit' ? project : null;
   const [pwOpen, setPwOpen] = useState(false);
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      <PageHeader title={target ? 'Project Setup' : 'New Project Setup'} badge={target ? `${target.capacityMw} MW` : `${MASTER_ACTIVITIES.length} Work Packages`} subtitle="Master parameters, location hierarchy and working calendar"
+      <PageHeader title={target ? 'Project Setup' : 'Create New Project'} badge={target ? `${target.capacityMw} MW` : `${MASTER_ACTIVITIES.length} Work Packages`} subtitle="Master parameters, location hierarchy and working calendar"
         right={project && user.canEdit && (mode === 'edit'
           ? <div className="flex gap-2"><Button variant="outline" onClick={() => setPwOpen(true)}><KeyRound className="h-4 w-4" />{project.locked ? 'Project password' : 'Set project password'}</Button><Button variant="outline" onClick={() => setMode('new')}><Plus className="h-4 w-4" />New project</Button></div>
-          : <Button variant="outline" onClick={() => setMode('edit')}><X className="h-4 w-4" />Back to {project.name}</Button>)} />
+          : <Button variant="outline" onClick={() => setMode('edit')}><Pencil className="h-4 w-4" />Edit {project.name}</Button>)} />
       <div className="rounded-2xl border border-dark-700 bg-[#0b111c] p-6">
         <SetupForm key={`${mode}-${target?.id ?? 'new'}`} project={target} onDone={() => setMode('edit')} />
       </div>
@@ -327,6 +373,7 @@ function SetupForm({ project, onDone }: { project: Project | null; onDone: () =>
   });
   const [busy, setBusy] = useState(false);
   const [projectPassword, setProjectPassword] = useState('');
+  const [projectPassword2, setProjectPassword2] = useState('');
   const districts = DISTRICTS[f.state];
   const villages = [...new Set(projects.filter((p) => p.district === f.district && p.village).map((p) => p.village))];
   const readOnly = !user.canEdit;
@@ -362,10 +409,10 @@ function SetupForm({ project, onDone }: { project: Project | null; onDone: () =>
         onDone();
       } else {
         if (dur !== '') payload.plannedDuration = plannedWd;
-        if (projectPassword) {
-          if (projectPassword.length < 6) throw new Error('Project password must be at least 6 characters');
-          payload.projectPassword = projectPassword;
-        }
+        if (!projectPassword) throw new Error('Project password is required');
+        if (projectPassword.length < 6) throw new Error('Project password must be at least 6 characters');
+        if (projectPassword !== projectPassword2) throw new Error('The two project passwords do not match');
+        payload.projectPassword = projectPassword;
         const r = await api.createProject(payload as Partial<Project>);
         toast(`Project created with ${r.activities.length} scheduled activities`);
         await reloadProjects();
@@ -443,10 +490,15 @@ function SetupForm({ project, onDone }: { project: Project | null; onDone: () =>
         <textarea className="w-full rounded-lg border border-dark-600 bg-dark-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-solar-amber focus:outline-none" rows={3} value={f.description} onChange={(e) => set('description', e.target.value)} placeholder="e.g. Ground Mounted Solar PV project with central inverter station, 110kV bay evacuation..." />
       </label>
       {!project && (
-        <label className="block"><Lbl>Project Password (optional)</Lbl>
-          <Input className="w-full" type="password" autoComplete="new-password" value={projectPassword} onChange={(e) => setProjectPassword(e.target.value)} placeholder="Leave empty for no password" />
-          <span className="mt-1 block text-[11px] text-slate-500">If you set one, anyone opening this project must enter it first. You can change or remove it later from the project card.</span>
-        </label>
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="block"><Lbl>Project Password *</Lbl>
+            <Input className="w-full" type="password" required autoComplete="new-password" value={projectPassword} onChange={(e) => setProjectPassword(e.target.value)} placeholder="At least 6 characters" />
+          </label>
+          <label className="block"><Lbl>Confirm Project Password *</Lbl>
+            <Input className="w-full" type="password" required autoComplete="new-password" value={projectPassword2} onChange={(e) => setProjectPassword2(e.target.value)} placeholder="Type it again" />
+          </label>
+          <span className="block text-[11px] text-slate-500 md:col-span-2">Required. Anyone opening this project must enter this password first. You can change it later with the key button on the project card.</span>
+        </div>
       )}
       <div className="flex justify-end gap-3 border-t border-dark-700 pt-4">
         <Button variant="ghost" onClick={onDone} type="button">Cancel</Button>

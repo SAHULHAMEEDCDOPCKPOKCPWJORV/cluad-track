@@ -1,7 +1,7 @@
 // SWELECT Project Control – app helper (service worker).
 // Makes the installed app open fast and show a friendly page when there is no internet.
 // Project data (/api/...) is NEVER cached here: it always comes live from the server.
-const VERSION = 'swelect-v1';
+const VERSION = 'swelect-v2';
 const SHELL = ['/', '/offline.html', '/icons/icon-192.png', '/icons/icon-512.png', '/swelect-logo.png', '/swelect-mark.png'];
 
 self.addEventListener('install', (e) => {

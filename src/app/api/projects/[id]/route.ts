@@ -1,6 +1,6 @@
 import { audit, body, handler, ok, requireUser } from '@/server/auth';
 import { refitProject, sanitizeProjectInput } from '@/server/projectService';
-import { assertProjectAccess, forgetPassword, lockState } from '@/server/projectLock';
+import { assertProjectAccess, checkPassword, forgetPassword, lockState } from '@/server/projectLock';
 import { getStore, HttpError } from '@/server/store';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -36,15 +36,24 @@ export const PATCH = handler(async (req: Request, ctx: Ctx) => {
   return ok({ project: (await lockState(u)).decorate(next) });
 });
 
-export const DELETE = handler(async (_req: Request, ctx: Ctx) => {
+/**
+ * DELETE { password, declaration: true } -> deletes the project.
+ * Always needs the project's password and the signed declaration, even for an Admin account.
+ */
+export const DELETE = handler(async (req: Request, ctx: Ctx) => {
   const u = await requireUser({ admin: true });
   const { id } = await ctx.params;
-  await assertProjectAccess(u, id);
   const store = getStore();
   const prev = await store.getProject(id);
   if (!prev) throw new HttpError(404, 'Project not found');
+  const { password, declaration } = await body<{ password?: unknown; declaration?: unknown }>(req);
+  if (declaration !== true) throw new HttpError(400, 'Tick the declaration to confirm the deletion');
+  if (!(await checkPassword(id, password))) {
+    await store.addAudit([audit(u, { action: 'PROJECT_DELETE_REFUSED', projectId: id, projectName: prev.name, newValue: 'Wrong project password' })]);
+    throw new HttpError(403, 'Incorrect project password. The project was not deleted.');
+  }
   await store.deleteProject(id);
   await forgetPassword(id);
-  await store.addAudit([audit(u, { action: 'PROJECT_DELETED', projectId: id, projectName: prev.name })]);
+  await store.addAudit([audit(u, { action: 'PROJECT_DELETED', projectId: id, projectName: prev.name, newValue: `Deleted with project password and signed declaration by ${u.email}` })]);
   return ok({ ok: true });
 });

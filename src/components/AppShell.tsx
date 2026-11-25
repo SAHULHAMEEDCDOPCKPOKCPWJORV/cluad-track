@@ -86,7 +86,7 @@ type NavItem = { view: View; label: string; icon: ReactNode; needsProject?: bool
 const NAV: NavItem[] = [
   { view: 'home', label: 'Home', icon: <Home className="h-[18px] w-[18px]" />, group: '' },
   { view: 'projects', label: 'Project Storage', icon: <FolderOpen className="h-[18px] w-[18px]" />, group: 'Projects' },
-  { view: 'setup', label: 'Project Setup', icon: <SlidersHorizontal className="h-[18px] w-[18px]" />, group: 'Projects' },
+  { view: 'setup', label: 'Create New Project', icon: <SlidersHorizontal className="h-[18px] w-[18px]" />, group: 'Projects' },
   { view: 'schedule', label: 'Master Schedule', icon: <FileSpreadsheet className="h-[18px] w-[18px]" />, needsProject: true, group: 'Projects' },
   { view: 'gantt', label: 'Gantt Chart', icon: <GanttChartSquare className="h-[18px] w-[18px]" />, needsProject: true, group: 'Projects' },
   { view: 'dashboard', label: 'Project Dashboard', icon: <LayoutGrid className="h-[18px] w-[18px]" />, needsProject: true, group: 'Projects' },
@@ -295,7 +295,10 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
       markSaved();
     },
     toast,
-    registerSave: (fn) => { saveFn.current = fn; },
+    registerSave: (fn) => {
+      saveFn.current = fn;
+      (window as unknown as { __swelectUnsaved?: boolean }).__swelectUnsaved = !!fn; // the auto-updater waits while edits are unsaved
+    },
     markSaved,
   };
 

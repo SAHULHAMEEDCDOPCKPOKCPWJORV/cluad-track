@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import ThemeToggle from '@/components/ThemeToggle';
 import InstallApp from '@/components/InstallApp';
+import AppUpdater from '@/components/AppUpdater';
 
 export const metadata: Metadata = {
   title: 'SWELECT Project Control',
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <ThemeToggle />
         <InstallApp />
+        <AppUpdater />
       </body>
     </html>
   );
