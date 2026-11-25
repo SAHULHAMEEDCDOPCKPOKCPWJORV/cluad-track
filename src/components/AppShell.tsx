@@ -84,7 +84,6 @@ export const useApp = () => {
 
 type NavItem = { view: View; label: string; icon: ReactNode; needsProject?: boolean; group: string };
 const NAV: NavItem[] = [
-  { view: 'home', label: 'Home', icon: <Home className="h-[18px] w-[18px]" />, group: '' },
   { view: 'projects', label: 'Project Storage', icon: <FolderOpen className="h-[18px] w-[18px]" />, group: 'Planning & Scheduling' },
   { view: 'setup', label: 'Create New Project', icon: <SlidersHorizontal className="h-[18px] w-[18px]" />, group: 'Planning & Scheduling' },
   { view: 'schedule', label: 'Master Schedule', icon: <FileSpreadsheet className="h-[18px] w-[18px]" />, needsProject: true, group: 'Planning & Scheduling' },
@@ -94,6 +93,7 @@ const NAV: NavItem[] = [
   { view: 'staff', label: 'Staff Performance', icon: <Award className="h-[18px] w-[18px]" />, needsProject: true, group: 'Planning & Scheduling' },
   { view: 'report', label: 'AI Project Report', icon: <BrainCircuit className="h-[18px] w-[18px]" />, needsProject: true, group: 'Planning & Scheduling' },
   { view: 'calendar', label: 'Holiday Calendar', icon: <CalendarDays className="h-[18px] w-[18px]" />, group: 'Planning & Scheduling' },
+  { view: 'home', label: 'MarCom Home', icon: <Home className="h-[18px] w-[18px]" />, group: 'MarCom' },
   { view: 'news', label: 'Solar News', icon: <Newspaper className="h-[18px] w-[18px]" />, group: 'MarCom' },
   { view: 'reputation', label: 'Reputation Monitor', icon: <ShieldCheck className="h-[18px] w-[18px]" />, group: 'MarCom' },
   { view: 'social', label: 'Social Media', icon: <BarChart3 className="h-[18px] w-[18px]" />, group: 'MarCom' },
@@ -153,7 +153,7 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
   const [projectId, setProjectId] = useState<string | null>(null);
   const [view, setViewState] = useState<View>(() => {
     const v = typeof window !== 'undefined' ? (localStorage.getItem('swelect.view') as View | null) : null;
-    if (!v || v === 'settings') return 'home';
+    if (!v || v === 'settings') return 'projects'; // Planning & Scheduling home
     // A project is only opened from Project Storage, so a fresh start never lands inside a project page.
     return PROJECT_VIEWS.includes(v) && v !== 'calendar' && v !== 'setup' ? 'projects' : v;
   });
@@ -343,7 +343,7 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
   };
 
   const navItems = NAV.filter((n) => allowed(user, n.view));
-  const current = navItems.find((n) => n.view === view) ?? NAV[0];
+  const current = navItems.find((n) => n.view === view) ?? navItems.find((n) => n.view === 'projects') ?? navItems.find((n) => n.view === 'home') ?? navItems[0];
   const onProjectPage = PROJECT_VIEWS.includes(current.view);
   let body: ReactNode;
   if (loading) body = <Spinner />;
@@ -360,7 +360,7 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
       delays: <DelaysView />, staff: <StaffView />, report: <ReportView />, calendar: <CalendarView />, users: <UsersView />, audit: <AuditView />,
     }[current.view];
 
-  const badges: Partial<Record<View, string>> = { schedule: `${visible.length || 165} Act`, delays: 'Live Risk', report: 'AI', staff: 'Incharge', };
+  const badges: Partial<Record<View, string>> = { projects: 'Home', schedule: `${visible.length || 165} Act`, delays: 'Live Risk', report: 'AI', staff: 'Incharge', };
   const timeStr = savedAt?.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' });
 
   return (
