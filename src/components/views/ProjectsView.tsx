@@ -17,14 +17,16 @@ import { MASTER_ACTIVITIES } from '@/lib/master';
 const STATUS_COL: Record<string, string> = { Planning: C.violet, 'In Progress': C.blue, 'On Hold': C.amber, Completed: C.emerald };
 const TYPE_LABEL: Record<string, string> = { 'Solar EPC': 'Solar EPC (Engineering, Procurement & Construction)', 'Solar IPP': 'Solar IPP (Independent Power Producer)' };
 
-export default function ProjectsView() {
-  const { projects, summaries, user, selectProject, setView, reloadProjects, toast, project: current, cal } = useApp();
+export default function ProjectsView({ notice }: { notice?: string } = {}) {
+  const { projects, summaries, user, openProject, reloadProjects, toast, project: current, cal } = useApp();
   const [editing, setEditing] = useState<Project | null | 'new'>(null);
   const [q, setQ] = useState('');
   const [st, setSt] = useState('');
   const [ty, setTy] = useState('');
   const [busyId, setBusyId] = useState('');
   const [pwFor, setPwFor] = useState<Project | null>(null);
+  const [unlockFor, setUnlockFor] = useState<Project | null>(null);
+  const open = (p: Project) => (p.locked && !p.unlocked ? setUnlockFor(p) : openProject(p.id));
 
   const shown = projects.filter((p) => (!st || p.status === st) && (!ty || p.projectType === ty) && (!q || `${p.name} ${p.state} ${p.district} ${p.village}`.toLowerCase().includes(q.toLowerCase())));
   const byState = Object.entries(projects.reduce<Record<string, number>>((m, p) => ({ ...m, [p.state || '—']: (m[p.state || '—'] ?? 0) + p.capacityMw }), {})).map(([state, mw]) => ({ state, MW: mw }));
@@ -75,6 +77,7 @@ export default function ProjectsView() {
       <PageHeader title="Project Storage & Workspace" badge={`${projects.length} Saved Projects`} subtitle="Multi-project solar portfolio • Isolated database storage per project"
         right={user.canEdit && <Button onClick={() => setEditing('new')} className="px-5 py-2.5 shadow-lg shadow-emerald-500/20"><Plus className="h-4 w-4" />Create New Project</Button>} />
 
+      {notice && <div className="flex items-center gap-2 rounded-xl border border-solar-amber/40 bg-solar-amber/10 px-4 py-3 text-sm text-solar-gold"><Lock className="h-4 w-4 shrink-0" />{notice}</div>}
       <div className="flex flex-wrap gap-3 rounded-xl border border-dark-700 bg-dark-900/80 p-4">
         <div className="relative min-w-[220px] flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search projects by name, state, district..." className="w-full pl-9" /></div>
         <Select value={st} onChange={(e) => setSt(e.target.value)} className="w-auto"><option value="">All Statuses</option>{PROJECT_STATUSES.map((s) => <option key={s}>{s}</option>)}</Select>
@@ -135,7 +138,7 @@ export default function ProjectsView() {
                     {user.canEdit && <button title={p.locked ? 'Change or remove project password' : 'Set a project password'} aria-label="Project password" onClick={() => setPwFor(p)} className="rounded p-1.5 text-slate-400 hover:bg-dark-800 hover:text-white"><KeyRound className={clsx('h-4 w-4', p.locked && 'text-solar-gold')} /></button>}
                     {user.canEdit && <button title="Duplicate project" disabled={busyId === p.id} onClick={() => duplicate(p)} className="rounded p-1.5 text-slate-400 hover:bg-dark-800 hover:text-white"><Copy className={clsx('h-4 w-4', busyId === p.id && 'animate-pulse')} /></button>}
                     {user.role === 'Admin' && <button title="Delete project" onClick={() => remove(p)} className="rounded p-1.5 text-slate-400 hover:bg-dark-800 hover:text-brand-rose"><Trash2 className="h-4 w-4" /></button>}
-                    <button onClick={() => { selectProject(p.id); setView('schedule'); }} className="ml-2 flex items-center gap-1.5 rounded-lg border border-solar-amber/60 bg-solar-amber/10 px-3 py-1.5 text-sm font-semibold text-solar-gold hover:bg-solar-amber/20">{p.locked && !p.unlocked ? 'Unlock' : 'Open'}{p.locked && !p.unlocked ? <Lock className="h-3.5 w-3.5" /> : <ExternalLink className="h-3.5 w-3.5" />}</button>
+                    <button onClick={() => open(p)} className="ml-2 flex items-center gap-1.5 rounded-lg border border-solar-amber/60 bg-solar-amber/10 px-3 py-1.5 text-sm font-semibold text-solar-gold hover:bg-solar-amber/20">{p.locked && !p.unlocked ? 'Unlock' : 'Open'}{p.locked && !p.unlocked ? <Lock className="h-3.5 w-3.5" /> : <ExternalLink className="h-3.5 w-3.5" />}</button>
                   </div>
                 </div>
               );
@@ -173,7 +176,42 @@ export default function ProjectsView() {
         </Modal>
       )}
       {pwFor && <ProjectPasswordModal project={pwFor} onClose={() => setPwFor(null)} />}
+      {unlockFor && <UnlockModal project={unlockFor} onClose={() => setUnlockFor(null)} onOpened={() => { setUnlockFor(null); openProject(unlockFor.id); }} />}
     </div>
+  );
+}
+
+/** Password prompt shown on Project Storage before a protected project opens. */
+function UnlockModal({ project, onClose, onOpened }: { project: Project; onClose: () => void; onOpened: () => void }) {
+  const { reloadProjects } = useApp();
+  const [pw, setPw] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (!pw) return setErr('Enter the project password');
+    setErr('');
+    setBusy(true);
+    try {
+      await api.unlockProject(project.id, pw);
+      await reloadProjects();
+      onOpened();
+    } catch (e) {
+      setErr((e as Error).message);
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal open onClose={onClose} title={<span className="flex items-center gap-2"><Lock className="h-4 w-4 text-solar-gold" />Open {project.name}</span>}>
+      <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+        <p className="text-sm text-slate-400">This project is password protected. Enter its password to open it.</p>
+        <Field label="Project password"><Input type="password" autoFocus value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="off" placeholder="Enter project password" /></Field>
+        {err && <p className="text-sm text-brand-rose">{err}</p>}
+        <div className="flex justify-end gap-2 pt-1">
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit" loading={busy}>Open project</Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -273,7 +311,7 @@ function Lbl({ n, children, accent }: { n?: number; children: React.ReactNode; a
 }
 
 function SetupForm({ project, onDone }: { project: Project | null; onDone: () => void }) {
-  const { cal, holidays, projects, reloadProjects, selectProject, setView, toast, reloadProject, user } = useApp();
+  const { cal, holidays, projects, reloadProjects, openProject, toast, reloadProject, user } = useApp();
   const [f, setF] = useState({
     name: project?.name ?? '',
     capacityMw: project?.capacityMw ?? 50,
@@ -331,8 +369,7 @@ function SetupForm({ project, onDone }: { project: Project | null; onDone: () =>
         const r = await api.createProject(payload as Partial<Project>);
         toast(`Project created with ${r.activities.length} scheduled activities`);
         await reloadProjects();
-        selectProject(r.project.id);
-        setView('schedule');
+        openProject(r.project.id);
       }
     } catch (e) {
       toast((e as Error).message, 'err');

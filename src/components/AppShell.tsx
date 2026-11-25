@@ -61,6 +61,10 @@ interface Ctx {
   view: View;
   setView: (v: View) => void;
   selectProject: (id: string) => void;
+  /** Opens a project (from Project Storage only) and goes to its dashboard. */
+  openProject: (id: string) => void;
+  /** Closes the open project and returns to Project Storage. */
+  closeProject: () => void;
   reloadProjects: () => Promise<void>;
   reloadProject: () => Promise<void>;
   reloadHolidays: () => Promise<void>;
@@ -144,7 +148,9 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
   const [projectId, setProjectId] = useState<string | null>(null);
   const [view, setViewState] = useState<View>(() => {
     const v = typeof window !== 'undefined' ? (localStorage.getItem('swelect.view') as View | null) : null;
-    return v && v !== 'settings' ? v : 'home';
+    if (!v || v === 'settings') return 'home';
+    // A project is only opened from Project Storage, so a fresh start never lands inside a project page.
+    return PROJECT_VIEWS.includes(v) && v !== 'calendar' && v !== 'setup' ? 'projects' : v;
   });
   const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState<{ id: number; msg: string; kind: 'ok' | 'err' }[]>([]);
@@ -161,8 +167,6 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
   const onUserRef = useRef(onUser);
   onUserRef.current = onUser;
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  /** The selected project has a password that has not been entered yet. */
-  const [lockedId, setLockedId] = useState<string | null>(null);
   const [hist, setHist] = useState<ProgressHistory>(new Map());
   pidRef.current = projectId;
 
@@ -178,11 +182,8 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
     const r = await api.projects();
     setProjects(r.projects);
     setSummaries(Object.fromEntries(r.summaries.map((s) => [s.projectId, s])));
-    setProjectId((cur) => {
-      if (cur && r.projects.some((p) => p.id === cur)) return cur;
-      const saved = typeof window !== 'undefined' ? localStorage.getItem('swelect.project') : null;
-      return r.projects.find((p) => p.id === saved)?.id ?? r.projects.find((p) => !p.locked)?.id ?? r.projects[0]?.id ?? null;
-    });
+    // Keep the open project only while it still exists and is still open for this account. Nothing is opened automatically.
+    setProjectId((cur) => (cur && r.projects.some((p) => p.id === cur && (!p.locked || p.unlocked)) ? cur : null));
   }, []);
   const reloadHolidays = useCallback(async () => setHolidays((await api.holidays()).holidays), []);
   const reloadProject = useCallback(async () => {
@@ -197,19 +198,22 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
     } catch (e) {
       // Password-protected project: show the password screen instead of an error.
       if (e instanceof ApiError && e.status === 423) {
-        if (pidRef.current === projectId) { setLockedId(projectId); setProject(null); setActivities([]); setLoadedFor(null); setHist(new Map()); }
+        if (pidRef.current === projectId) {
+          setProjectId(null); setProject(null); setActivities([]); setLoadedFor(null); setHist(new Map());
+          setViewState('projects');
+          toast('This project is password protected. Open it from Project Storage and enter its password.', 'err');
+        }
         return;
       }
       throw e;
     }
     if (pidRef.current !== projectId) return; // a newer project was selected meanwhile
-    setLockedId(null);
     setProject(r.project);
     setActivities(r.activities);
     setLoadedFor(projectId);
     // Recorded progress changes: the only source for the past part of the actual S-curve.
     api.progressHistory(projectId).then((h) => { if (pidRef.current === projectId) setHist(historyFromAudit(h.logs)); }).catch(() => setHist(new Map()));
-  }, [projectId]);
+  }, [projectId, toast]);
 
   useEffect(() => {
     Promise.all(canProjects ? [reloadProjects(), reloadHolidays()] : [])
@@ -220,9 +224,7 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
     // Drop the previous project's data at once so a newly created/selected project never shows old details.
     setProject((p) => (p?.id === projectId ? p : null));
     setActivities((a) => (a[0]?.projectId === projectId ? a : []));
-    setLockedId(null);
     reloadProject().catch((e) => toast(e.message, 'err'));
-    if (projectId) localStorage.setItem('swelect.project', projectId);
   }, [projectId, reloadProject, toast]);
 
   // ── Live updates: other people's saves appear here within seconds, no refresh needed ──
@@ -281,6 +283,8 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
   const ctx: Ctx = {
     user: viewUser, storeKind, projects, summaries, project, activities: visible, holidays, model, cal, view, setView,
     selectProject: (id) => setProjectId(id),
+    openProject: (id) => { setProjectId(id); setView('dashboard'); },
+    closeProject: () => { setProjectId(null); setView('projects'); },
     reloadProjects, reloadProject, reloadHolidays,
     applyUpdate: (r) => {
       setProject(r.project);
@@ -334,9 +338,8 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
   const onProjectPage = PROJECT_VIEWS.includes(current.view);
   let body: ReactNode;
   if (loading) body = <Spinner />;
-  else if (current.needsProject && !project && lockedId && lockedId === projectId)
-    body = <ProjectLockScreen name={projects.find((p) => p.id === lockedId)?.name ?? 'This project'} onUnlock={async (pw) => { await api.unlockProject(lockedId, pw); await Promise.all([reloadProject(), reloadProjects()]); }} onBack={() => setView('projects')} />;
-  else if (current.needsProject && !project) body = <ProjectsView />;
+  else if (current.needsProject && !projectId) body = <ProjectsView notice="Open a project here first. Password-protected projects ask for their password." />;
+  else if (current.needsProject && !project) body = <Spinner label="Opening project…" />;
   else if (current.needsProject && project && !model)
     body = loadedFor === project.id && !visible.length
       ? <EmptySchedule project={project} full={hasFullAccess(user)} hasAny={activities.length > 0} cal={cal} onDone={() => Promise.all([reloadProject(), reloadProjects()]).then(() => undefined)} toast={toast} />
@@ -409,15 +412,17 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
             <Logo size="sm" />
             <span className="hidden text-sm font-bold text-white sm:inline">{current.label}</span>
             {onProjectPage && projects.length > 0 && (
-              <select value={projectId ?? ''} onChange={(e) => setProjectId(e.target.value)} aria-label="Select project"
-                className="order-last w-full rounded-lg border border-dark-600 bg-dark-900 px-3 py-2 text-sm font-semibold text-white focus:border-solar-amber focus:outline-none sm:order-none sm:w-auto sm:max-w-[300px]">
-                {projects.map((p) => <option key={p.id} value={p.id}>{p.locked ? '🔒 ' : ''}{p.name} ({p.capacityMw} MW - {p.projectType})</option>)}
-              </select>
+              <div className="order-last flex w-full items-center gap-2 sm:order-none sm:w-auto">
+                <span className="truncate rounded-lg border border-dark-600 bg-dark-900 px-3 py-2 text-sm font-semibold text-white sm:max-w-[300px]">
+                  {project ? `${project.locked ? '🔒 ' : ''}${project.name} (${project.capacityMw} MW - ${project.projectType})` : 'No project open'}
+                </span>
+                {view !== 'projects' && <button onClick={() => setView('projects')} className="shrink-0 rounded-lg border border-dark-600 px-2.5 py-2 text-xs font-semibold text-slate-300 hover:border-solar-amber/60 hover:text-white">{project ? 'Change' : 'Open a project'}</button>}
+              </div>
             )}
             {onProjectPage && project && <span className={clsx('hidden rounded-full border px-3 py-1 text-xs font-semibold sm:inline', statusPill(project.status))}>● {project.status}</span>}
             {onProjectPage && project?.locked && (
               <button title="Lock this project again" aria-label="Lock project"
-                onClick={async () => { try { await api.lockProject(project.id); await Promise.all([reloadProject(), reloadProjects()]); } catch (e) { toast((e as Error).message, 'err'); } }}
+                onClick={async () => { try { await api.lockProject(project.id); setProjectId(null); setView('projects'); await reloadProjects(); toast('Project locked'); } catch (e) { toast((e as Error).message, 'err'); } }}
                 className="flex items-center gap-1.5 rounded-lg border border-solar-amber/50 bg-solar-amber/10 px-2.5 py-1.5 text-xs font-semibold text-solar-gold hover:bg-solar-amber/20"><Lock className="h-3.5 w-3.5" /><span className="hidden sm:inline">Lock</span></button>
             )}
             {onProjectPage && project && <span className="hidden rounded border border-dark-600 bg-dark-900 px-2.5 py-1 font-mono text-xs text-slate-300 md:inline">{project.state || '—'} • {project.capacityMw} MW</span>}
@@ -474,39 +479,6 @@ function Workspace({ user, storeKind, onLogout, onUser }: { user: SessionUser; s
   );
 }
 
-/** Shown instead of the project's pages while its password has not been entered. Nothing of the project is loaded. */
-function ProjectLockScreen({ name, onUnlock, onBack }: { name: string; onUnlock: (password: string) => Promise<void>; onBack: () => void }) {
-  const [pw, setPw] = useState('');
-  const [err, setErr] = useState('');
-  const [busy, setBusy] = useState(false);
-  const submit = async () => {
-    if (!pw) return setErr('Enter the project password');
-    setErr('');
-    setBusy(true);
-    try {
-      await onUnlock(pw);
-      setPw('');
-    } catch (e) {
-      setErr((e as Error).message);
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="mx-auto mt-10 max-w-md rounded-2xl border border-dark-700 bg-[#0b111c] p-8 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-solar-amber/15 text-solar-gold"><Lock className="h-7 w-7" /></div>
-      <div className="mt-4 text-lg font-bold text-white">{name}</div>
-      <p className="mt-1 text-sm text-slate-400">This project is password protected. Enter its password to open it.</p>
-      <form className="mt-5 space-y-3 text-left" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
-        <Field label="Project password"><Input type="password" autoFocus value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="off" placeholder="Enter project password" /></Field>
-        {err && <p className="text-sm text-brand-rose">{err}</p>}
-        <div className="flex justify-end gap-2 pt-1">
-          <Button type="button" variant="ghost" onClick={onBack}>Back to projects</Button>
-          <Button type="submit" loading={busy}>Open project</Button>
-        </div>
-      </form>
-    </div>
-  );
-}
 
 function OfflineScreen() {
   return (
